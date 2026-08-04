@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="《明星志愿 1》DOS 原版奖项、打工、训练资料库与养成规划工具。">
+  <title>明星志愿 1 · 养成资料站</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand-block">
+        <div class="brand-mark" aria-hidden="true"><span>S</span><i></i></div>
+        <div>
+          <p class="brand-kicker">DOS 1995</p>
+          <h1>明星志愿 1</h1>
+          <p class="brand-subtitle">养成资料站</p>
+        </div>
+      </div>
+
+      <nav class="main-nav" aria-label="主导航">
+        <button class="nav-item active" type="button" data-route="overview">
+          <i data-lucide="layout-dashboard"></i><span>资料总览</span>
+        </button>
+        <button class="nav-item" type="button" data-route="awards">
+          <i data-lucide="trophy"></i><span>奖项资料库</span><b id="nav-award-count">8</b>
+        </button>
+        <button class="nav-item" type="button" data-route="jobs">
+          <i data-lucide="briefcase-business"></i><span>打工资料库</span><b id="nav-job-count">12</b>
+        </button>
+        <button class="nav-item" type="button" data-route="trainings">
+          <i data-lucide="dumbbell"></i><span>训练资料库</span><b id="nav-training-count">11</b>
+        </button>
+        <button class="nav-item" type="button" data-route="planner">
+          <i data-lucide="calendar-range"></i><span>养成规划</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-status">
+        <div class="status-line"><span class="status-dot warning"></span><span>数值校准中</span></div>
+        <p id="sidebar-version">数据版本 2026.08-M0</p>
+      </div>
+    </aside>
+
+    <div class="mobile-bar">
+      <button class="icon-button" id="menu-button" type="button" aria-label="打开导航" title="打开导航">
+        <i data-lucide="menu"></i>
+      </button>
+      <strong>明星志愿 1</strong>
+      <span class="mobile-version">M0</span>
+    </div>
+
+    <main class="main-content">
+      <header class="page-header">
+        <div>
+          <p class="page-eyebrow" id="page-eyebrow">DOS 原版资料</p>
+          <h2 id="page-title">资料总览</h2>
+        </div>
+        <div class="page-meta">
+          <span><i data-lucide="database"></i><span id="header-version">2026.08-M0</span></span>
+          <span><i data-lucide="calendar-clock"></i><span id="header-updated">2026-08-03</span></span>
+        </div>
+      </header>
+
+      <section class="page active" id="page-overview" data-page="overview">
+        <div class="overview-band">
+          <div class="overview-copy">
+            <div class="pixel-label"><span></span>1995 DOS 原版</div>
+            <h3>两年期限，三项大奖，<br>每一周都要算清楚。</h3>
+            <p>资料按官方说明书、目标构建与玩家实测分级整理；未完成复测的数值不会进入自动规划。</p>
+            <div class="overview-actions">
+              <button class="primary-button" type="button" data-route-jump="planner">
+                <i data-lucide="calendar-range"></i>打开养成规划
+              </button>
+              <button class="text-button" type="button" data-route-jump="awards">
+                查看年度奖项<i data-lucide="arrow-right"></i>
+              </button>
+            </div>
+          </div>
+          <div class="overview-art" aria-hidden="true">
+            <img src="assets/stardom-cover.png" alt="">
+            <div class="art-scanline"></div>
+          </div>
+        </div>
+
+        <div class="module-grid" aria-label="模块概览">
+          <button class="module-card" type="button" data-route-jump="awards">
+            <span class="module-icon award"><i data-lucide="trophy"></i></span>
+            <span><b>8</b><small>项赛事与奖项</small></span>
+            <i data-lucide="arrow-up-right"></i>
+          </button>
+          <button class="module-card" type="button" data-route-jump="jobs">
+            <span class="module-icon job"><i data-lucide="briefcase-business"></i></span>
+            <span><b>12</b><small>项打工资料</small></span>
+            <i data-lucide="arrow-up-right"></i>
+          </button>
+          <button class="module-card" type="button" data-route-jump="trainings">
+            <span class="module-icon training"><i data-lucide="dumbbell"></i></span>
+            <span><b>11</b><small>项训练课程</small></span>
+            <i data-lucide="arrow-up-right"></i>
+          </button>
+          <button class="module-card" type="button" data-route-jump="planner">
+            <span class="module-icon planner"><i data-lucide="route"></i></span>
+            <span><b id="overview-plan-state">0</b><small>项可计算活动</small></span>
+            <i data-lucide="arrow-up-right"></i>
+          </button>
+        </div>
+
+        <div class="overview-columns">
+          <section class="content-section award-calendar">
+            <div class="section-heading">
+              <div><p>年度节奏</p><h3>关键颁奖日</h3></div>
+              <button class="icon-button" type="button" data-route-jump="awards" aria-label="查看奖项" title="查看奖项"><i data-lucide="arrow-right"></i></button>
+            </div>
+            <div id="overview-awards"></div>
+          </section>
+
+          <section class="content-section readiness-section">
+            <div class="section-heading">
+              <div><p>证据状态</p><h3>数据就绪度</h3></div>
+              <span class="status-pill pending">M0 校准期</span>
+            </div>
+            <div class="readiness-list">
+              <div class="readiness-row"><span>活动名称与方向</span><div class="meter"><i style="width:100%"></i></div><b>23 / 23</b></div>
+              <div class="readiness-row"><span>目标构建工资码</span><div class="meter"><i style="width:83%"></i></div><b>10 / 12</b></div>
+              <div class="readiness-row"><span>重复实测数值</span><div class="meter warning"><i style="width:0%"></i></div><b>0 / 23</b></div>
+              <div class="readiness-row"><span>规划计算准入</span><div class="meter warning"><i style="width:0%"></i></div><b>0 / 23</b></div>
+            </div>
+            <div class="calibration-note"><i data-lucide="flask-conical"></i><p><b>下一项：美姿训练</b><span>两组前后存档与属性画面完成后进入复核。</span></p></div>
+          </section>
+        </div>
+
+        <section class="last-plan-section" id="last-plan-section">
+          <div class="section-heading">
+            <div><p>本地方案</p><h3>最近一次规划</h3></div>
+            <button class="secondary-button" type="button" data-route-jump="planner">新建规划</button>
+          </div>
+          <p id="last-plan-summary">尚未保存规划输入。</p>
+        </section>
+      </section>
+
+      <section class="page library-page" id="page-awards" data-page="awards">
+        <div id="award-toolbar"></div>
+        <div id="award-results"></div>
+      </section>
+
+      <section class="page library-page" id="page-jobs" data-page="jobs">
+        <div id="job-toolbar"></div>
+        <div id="job-results"></div>
+      </section>
+
+      <section class="page library-page" id="page-trainings" data-page="trainings">
+        <div id="training-toolbar"></div>
+        <div id="training-results"></div>
+      </section>
+
+      <section class="page" id="page-planner" data-page="planner">
+        <div class="planner-status-banner">
+          <span class="status-icon"><i data-lucide="flask-conical"></i></span>
+          <div><b>规划数据校准中</b><p id="planner-status-message"></p></div>
+          <span class="status-pill pending">0 项准入</span>
+        </div>
+
+        <div class="planner-workspace">
+          <form class="planner-input" id="planner-form">
+            <section class="form-section">
+              <div class="form-heading"><span>01</span><h3>当前状态</h3></div>
+              <div class="field-grid three">
+                <label><span>年份</span><input type="number" name="year" min="1995" max="1996" value="1995"></label>
+                <label><span>月份</span><input type="number" name="month" min="1" max="12" value="1"></label>
+                <label><span>日期</span><input type="number" name="day" min="1" max="31" value="2"></label>
+              </div>
+              <div class="field-grid two">
+                <label><span>可用资金</span><div class="input-affix"><input type="number" name="funds" min="0" step="100" value="10000"><i>元</i></div></label>
+                <label><span>当前压力</span><input type="number" name="pressure" min="0" max="999" value="0"></label>
+              </div>
+              <label class="range-field"><span>压力安全上限 <b id="pressure-limit-value">80</b></span><input type="range" name="pressureLimit" min="20" max="200" step="5" value="80"></label>
+            </section>
+
+            <section class="form-section">
+              <div class="form-heading"><span>02</span><h3>属性目标</h3><em>单艺人</em></div>
+              <div class="attribute-editor" id="attribute-editor"></div>
+            </section>
+
+            <section class="form-section">
+              <div class="form-heading"><span>03</span><h3>可用活动</h3><em>仅合格数据</em></div>
+              <div class="activity-selector" id="planner-activities"></div>
+            </section>
+
+            <section class="form-section">
+              <div class="form-heading"><span>04</span><h3>规划策略</h3></div>
+              <div class="segmented-control strategy-control">
+                <label><input type="radio" name="strategy" value="fastest" checked><span><i data-lucide="zap"></i>最快达标</span></label>
+                <label><input type="radio" name="strategy" value="cheapest"><span><i data-lucide="wallet"></i>最低花费</span></label>
+                <label><input type="radio" name="strategy" value="balanced"><span><i data-lucide="scale"></i>均衡</span></label>
+              </div>
+            </section>
+
+            <button class="primary-button wide" type="submit"><i data-lucide="calculator"></i>生成方案</button>
+            <p class="save-state" id="save-state"><i data-lucide="hard-drive"></i>输入自动保存在当前浏览器</p>
+          </form>
+
+          <section class="planner-output" id="planner-output" aria-live="polite">
+            <div class="empty-plan">
+              <span class="empty-illustration"><i data-lucide="calendar-search"></i></span>
+              <p class="empty-kicker">尚未生成</p>
+              <h3>等待可计算的活动数据</h3>
+              <p>当前输入仍可保存；数据校准完成后可直接重新计算。</p>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+  <div class="drawer-backdrop" id="drawer-backdrop"></div>
+  <aside class="detail-drawer" id="detail-drawer" aria-hidden="true" aria-label="条目详情">
+    <header class="drawer-header">
+      <div class="drawer-title-wrap"><span class="drawer-icon" id="drawer-icon"></span><div><p id="drawer-kicker"></p><h2 id="drawer-title"></h2></div></div>
+      <button class="icon-button" id="drawer-close" type="button" aria-label="关闭详情" title="关闭详情"><i data-lucide="x"></i></button>
+    </header>
+    <div class="drawer-tabs" role="tablist">
+      <button class="active" type="button" role="tab" data-tab="profile">资料</button>
+      <button type="button" role="tab" data-tab="rules">数值与规则</button>
+      <button type="button" role="tab" data-tab="sources">来源</button>
+    </div>
+    <div class="drawer-body" id="drawer-body"></div>
+  </aside>
+
+  <script src="assets/vendor/lucide.min.js"></script>
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
