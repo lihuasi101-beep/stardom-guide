@@ -588,7 +588,7 @@
         title: "缺少达到准入门槛的活动",
         strategy: snapshot.strategy,
         diagnostics: [
-          { icon: "flask-conical", title: "23 项活动仍在校准", text: "官方资料只确认多数属性方向，尚不足以生成精确次数。" },
+          { icon: "flask-conical", title: "22 项活动仍在校准", text: "精确属性值已录入，但费用、耗时和上限尚不足以生成可靠次数。" },
           { icon: "shield-alert", title: "已阻止伪精确方案", text: "单一玩家实测和方向性数据不会进入自动计算。" },
           { icon: "list-checks", title: "当前目标已保存", text: "目标属性：" + targets.map(attributeName).join("、") + "。数据升级后可重新计算。" }
         ]

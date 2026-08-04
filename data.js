@@ -25,7 +25,7 @@
       title: "指纹一致的目标构建资源",
       type: "本地只读证据",
       url: "",
-      note: "STARFON.MKB 确认第 11 项分镜训练及全部活动名称。"
+      note: "STARFON.MKB 含额外训练槽标签，但实际跑测未出现对应项目，当前不计入有效训练目录。"
     },
     "SRC-TARGET-BUILD-SAVE": {
       title: "目标构建受控槽位样本",
@@ -224,18 +224,14 @@
     { id: "instrument", name: "乐器训练", icon: "guitar", exact: { singing: 2, rebellion: 1, pressure: 2 } },
     { id: "expression", name: "表情训练", icon: "drama", exact: { acting: 2, sexiness: 2, pressure: 2 } },
     { id: "stage", name: "舞台训练", icon: "theater", exact: { acting: 3, athletics: 1, pressure: 3 } },
-    { id: "photography", name: "摄影训练", icon: "camera", exact: { sexiness: 2, wisdom: 1, pressure: 2 } },
-    { id: "storyboard", name: "分镜训练", icon: "panels-top-left", exact: null }
+    { id: "photography", name: "摄影训练", icon: "camera", exact: { sexiness: 2, wisdom: 1, pressure: 2 } }
   ];
 
   const communityTestedTrainingIds = ["etiquette", "dance", "music_theory", "vocalization", "stage", "photography"];
 
   const trainings = trainingSeeds.map(function (item) {
-    const isStoryboard = item.id === "storyboard";
     const effectKeys = item.exact ? Object.keys(item.exact) : [];
-    const sourceRefs = isStoryboard
-      ? ["SRC-TARGET-BUILD-RESOURCE"]
-      : ["SRC-OFFICIAL-MANUAL", "SRC-USER-TRAINING-TABLE-2026-08-04"];
+    const sourceRefs = ["SRC-OFFICIAL-MANUAL", "SRC-USER-TRAINING-TABLE-2026-08-04"];
     if (communityTestedTrainingIds.includes(item.id)) sourceRefs.push("SRC-BAHA-TEST-2017");
     return {
       id: "activity.training." + item.id,
@@ -247,18 +243,18 @@
       cost: null,
       tiers: ["初级", "中级", "高级", "特级"],
       unlockStage: "条件不明",
-      unlock: isStoryboard ? "目标构建资源已确认课程存在，效果与解锁条件待校准。" : "四级属性与压力数值已录入；升级条件和费用仍待目标构建校准。",
-      status: isStoryboard ? "unknown" : "user_supplied_exact",
+      unlock: "四级属性与压力数值已录入；升级条件和费用仍待目标构建校准。",
+      status: "user_supplied_exact",
       calculationEligible: false,
       sourceRefs: sourceRefs,
       exact: item.exact,
-      exactEvidence: isStoryboard ? null : "用户提供精确表",
+      exactEvidence: "用户提供精确表",
       tierMultipliers: item.exact ? [1, 2, 3, 4] : null
     };
   });
 
   window.STARDOM_DATA = {
-    version: "2026.08-M2",
+    version: "2026.08-M3",
     updatedAt: "2026-08-04",
     gameVersion: "1995 DOS 原版 · 简体目标构建",
     attributes: attributes,
@@ -269,7 +265,7 @@
     planner: {
       status: "calibrating",
       eligibleActivityCount: 0,
-      message: "12 项打工和 10 项训练精确表已录入，但费用、耗时、上限及分镜训练仍待校准；当前 23 项活动不进入自动规划计算。"
+      message: "12 项打工和 10 项训练精确表已录入，但费用、耗时和上限仍待校准；当前 22 项活动不进入自动规划计算。"
     }
   };
 })();
