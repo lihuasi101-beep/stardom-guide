@@ -24,7 +24,7 @@
     filters: {
       awards: { query: "", categories: [], months: [], attributes: [] },
       jobs: { query: "", attributes: [], direction: "any", stages: [] },
-      trainings: { query: "", gains: [], losses: [] }
+      trainings: { query: "", gains: [], pressures: [] }
     },
     sort: {
       awards: { key: null, direction: null },
@@ -100,12 +100,22 @@
 
   function effectTags(item, type, limit) {
     const keys = type === "gain" ? item.increase : item.decrease;
+    return effectTagsForKeys(item, keys, type, limit);
+  }
+
+  function effectTagsForKeys(item, keys, type, limit, emptyLabel) {
     const items = (keys || []).slice(0, limit || keys.length);
-    if (!items.length) return '<span class="tag neutral">无</span>';
+    if (!items.length) return '<span class="tag neutral">' + escapeHtml(emptyLabel || "无") + '</span>';
     return '<div class="tag-list">' + items.map(function (key) {
       const value = item.exact && item.exact[key];
-      const signedValue = value == null ? (type === "gain" ? "+" : "−") : (value > 0 ? "+" + value : String(value).replace("-", "−"));
-      return '<span class="tag ' + type + '">' + escapeHtml(attributeName(key)) + signedValue + "</span>";
+      let signedValue = value == null ? (type === "gain" ? "+" : "−") : (value > 0 ? "+" + value : String(value).replace("-", "−"));
+      if (value != null && item.tierMultipliers) {
+        signedValue = item.tierMultipliers.map(function (multiplier) {
+          const tierValue = value * multiplier;
+          return tierValue > 0 ? "+" + tierValue : String(tierValue).replace("-", "−");
+        }).join("/");
+      }
+      return '<span class="tag ' + type + '">' + escapeHtml(attributeName(key)) + " " + signedValue + "</span>";
     }).join("") + "</div>";
   }
 
@@ -171,7 +181,7 @@
         filterMenu("解锁阶段", "stages", ["初始可用", "属性门槛"], current.stages);
     } else {
       controls = filterMenu("增益属性", "gains", Object.keys(data.attributes).map(function (key) { return { value: key, label: attributeName(key) }; }), current.gains) +
-        filterMenu("减益属性", "losses", Object.keys(data.attributes).map(function (key) { return { value: key, label: attributeName(key) }; }), current.losses);
+        filterMenu("压力基础值", "pressures", [1, 2, 3].map(function (value) { return { value: value, label: "+" + value + "（初级）" }; }), current.pressures);
     }
     return '<div class="library-toolbar" data-toolbar-kind="' + kind + '">' +
       '<div class="filter-row ' + kind + '">' +
@@ -194,7 +204,7 @@
     if (kind === "jobs") {
       return { query: query, attributes: collectChecked(container, "attributes"), direction: container.querySelector('select[name="direction"]').value, stages: collectChecked(container, "stages") };
     }
-    return { query: query, gains: collectChecked(container, "gains"), losses: collectChecked(container, "losses") };
+    return { query: query, gains: collectChecked(container, "gains"), pressures: collectChecked(container, "pressures") };
   }
 
   function activeFilterLabels(kind) {
@@ -211,7 +221,7 @@
       current.stages.forEach(function (value) { labels.push(value); });
     } else {
       current.gains.forEach(function (value) { labels.push("增益 " + attributeName(value)); });
-      current.losses.forEach(function (value) { labels.push("减益 " + attributeName(value)); });
+      current.pressures.forEach(function (value) { labels.push("初级压力 +" + value); });
     }
     return labels;
   }
@@ -246,7 +256,7 @@
       rows = data.trainings.filter(function (item) {
         return matchQuery(item, filters.query) &&
           (!filters.gains.length || filters.gains.some(function (key) { return item.increase.includes(key); })) &&
-          (!filters.losses.length || filters.losses.some(function (key) { return item.decrease.includes(key); }));
+          (!filters.pressures.length || (item.exact && filters.pressures.includes(String(item.exact.pressure))));
       });
     }
     return sortRows(kind, rows);
@@ -263,6 +273,7 @@
       if (sort.key === "income") { av = a.income; bv = b.income; }
       if (sort.key === "gain") { av = a.increase.length; bv = b.increase.length; }
       if (sort.key === "cost") { av = a.cost; bv = b.cost; }
+      if (sort.key === "pressure") { av = a.exact && a.exact.pressure; bv = b.exact && b.exact.pressure; }
       if (av == null && bv == null) return 0;
       if (av == null) return 1;
       if (bv == null) return -1;
@@ -304,9 +315,12 @@
         return '<tr tabindex="0" data-kind="job" data-item-id="' + item.id + '"><td><div class="name-cell"><span class="row-icon job"><i data-lucide="' + item.icon + '"></i></span><span><b>' + item.name + '</b><small>能力加权 ' + item.abilityWeight + '</small></span></div></td><td>' + item.unlockStage + '</td><td>' + escapeHtml(item.unlock) + '</td><td><b>' + money(item.income) + '</b></td><td>' + effectTags(item, "gain", 4) + '</td><td>' + effectTags(item, "loss", 4) + '</td><td>' + statusPill(item.status) + '</td></tr>';
       }).join("");
     } else {
-      head = '<tr><th>训练名称</th><th>' + sortButton(kind, "cost", "费用") + '</th><th>' + sortButton(kind, "gain", "主要增益") + '</th><th>主要减益</th><th>等级/阶段</th><th>置信等级</th></tr>';
+      head = '<tr><th>训练名称</th><th>' + sortButton(kind, "cost", "费用") + '</th><th>属性提升</th><th>' + sortButton(kind, "pressure", "压力增加") + '</th><th>等级/阶段</th><th>置信等级</th></tr>';
       body = rows.map(function (item) {
-        return '<tr tabindex="0" data-kind="training" data-item-id="' + item.id + '"><td><div class="name-cell"><span class="row-icon training"><i data-lucide="' + item.icon + '"></i></span><span><b>' + item.name + '</b><small>DOS 原版课程</small></span></div></td><td><b>' + money(item.cost) + '</b></td><td>' + tags(item.increase, "gain", 3) + '</td><td>' + tags(item.decrease, "loss", 3) + '</td><td>初 / 中 / 高 / 特</td><td>' + statusPill(item.status) + '</td></tr>';
+        const coreAttributes = item.increase.filter(function (key) { return key !== "pressure"; });
+        const pressureAttributes = item.increase.includes("pressure") ? ["pressure"] : [];
+        const emptyLabel = item.exact ? "无" : "未确认";
+        return '<tr tabindex="0" data-kind="training" data-item-id="' + item.id + '"><td><div class="name-cell"><span class="row-icon training"><i data-lucide="' + item.icon + '"></i></span><span><b>' + item.name + '</b><small>DOS 原版课程</small></span></div></td><td><b>' + money(item.cost) + '</b></td><td>' + effectTagsForKeys(item, coreAttributes, "gain", 2, emptyLabel) + '</td><td>' + effectTagsForKeys(item, pressureAttributes, "loss", 1, emptyLabel) + '</td><td>初 / 中 / 高 / 特</td><td>' + statusPill(item.status) + '</td></tr>';
       }).join("");
     }
     target.innerHTML = '<div class="table-shell"><div class="data-table-wrap"><table class="data-table"><thead>' + head + '</thead><tbody>' + body + "</tbody></table></div></div>";
@@ -324,7 +338,7 @@
     state.sort[kind] = { key: null, direction: null };
     if (kind === "awards") state.filters.awards = { query: "", categories: [], months: [], attributes: [] };
     if (kind === "jobs") state.filters.jobs = { query: "", attributes: [], direction: "any", stages: [] };
-    if (kind === "trainings") state.filters.trainings = { query: "", gains: [], losses: [] };
+    if (kind === "trainings") state.filters.trainings = { query: "", gains: [], pressures: [] };
     renderLibrary(kind);
   }
 
@@ -351,14 +365,21 @@
     }).join("");
   }
 
-  function exactMatrix(exact, evidenceLabel, increase, decrease) {
+  function exactMatrix(exact, evidenceLabel, increase, decrease, tierMultipliers) {
     const keys = Object.keys(data.attributes);
     return '<table class="matrix-table"><thead><tr><th>属性</th><th>方向/基础值</th><th>证据</th></tr></thead><tbody>' + keys.map(function (key) {
       let value = "—";
       let evidence = "无变化资料";
       if (exact && Object.prototype.hasOwnProperty.call(exact, key)) {
         const exactValue = exact[key];
-        value = exactValue > 0 ? "+" + exactValue : String(exactValue).replace("-", "−");
+        if (tierMultipliers) {
+          value = tierMultipliers.map(function (multiplier) {
+            const tierValue = exactValue * multiplier;
+            return tierValue > 0 ? "+" + tierValue : String(tierValue).replace("-", "−");
+          }).join(" / ");
+        } else {
+          value = exactValue > 0 ? "+" + exactValue : String(exactValue).replace("-", "−");
+        }
         evidence = evidenceLabel;
       } else if ((increase || []).includes(key)) {
         value = "+ 方向已知";
@@ -372,9 +393,9 @@
   }
 
   function activityMatrix(item) {
-    let content = exactMatrix(item.exact, item.exactEvidence || "单一玩家实测", item.increase, item.decrease);
+    let content = exactMatrix(item.exact, item.exactEvidence || "单一玩家实测", item.increase, item.decrease, item.tierMultipliers);
     (item.variants || []).forEach(function (variant) {
-      content += '<section class="detail-section variant-matrix"><h3>' + escapeHtml(variant.name) + '变体</h3><p>触发条件：' + escapeHtml(variant.requirement) + '；能力加权 ' + variant.abilityWeight + '。</p>' + exactMatrix(variant.exact, item.exactEvidence || "单一玩家实测", [], []) + '</section>';
+      content += '<section class="detail-section variant-matrix"><h3>' + escapeHtml(variant.name) + '变体</h3><p>触发条件：' + escapeHtml(variant.requirement) + '；能力加权 ' + variant.abilityWeight + '。</p>' + exactMatrix(variant.exact, item.exactEvidence || "单一玩家实测", [], [], null) + '</section>';
     });
     return content;
   }
@@ -401,19 +422,22 @@
     if (tab === "profile") {
       const unit = context.kind === "job" ? "薪资" : "费用";
       const amount = context.kind === "job" ? money(item.income) : money(item.cost);
+      const effectSummary = context.kind === "training"
+        ? effectTagsForKeys(item, item.increase.filter(function (key) { return key !== "pressure"; }), "gain", null, item.exact ? "无" : "未确认") + effectTagsForKeys(item, item.increase.includes("pressure") ? ["pressure"] : [], "loss", null, item.exact ? "无" : "未确认")
+        : effectTags(item, "gain") + effectTags(item, "loss");
       return '<section class="detail-section"><div class="detail-grid">' +
         '<div class="detail-field"><small>类型</small><b>' + (context.kind === "job" ? "打工" : "训练") + '</b></div>' +
         '<div class="detail-field"><small>' + unit + '</small><b>' + amount + '</b></div>' +
         '<div class="detail-field"><small>解锁阶段</small><b>' + item.unlockStage + '</b></div>' +
         (context.kind === "job" ? '<div class="detail-field"><small>能力加权</small><b>' + item.abilityWeight + '</b></div>' : '') +
         '<div class="detail-field"><small>计算准入</small><b>暂不可用</b></div>' +
-        '</div></section><section class="detail-section"><h3>解锁与阶段</h3><p>' + escapeHtml(item.unlock) + '</p></section><section class="detail-section"><h3>主要变化</h3>' + effectTags(item, "gain") + effectTags(item, "loss") + '</section>';
+        '</div></section><section class="detail-section"><h3>解锁与阶段</h3><p>' + escapeHtml(item.unlock) + '</p></section><section class="detail-section"><h3>主要变化</h3>' + effectSummary + '</section>';
     }
     const calculationBoundary = context.kind === "job"
       ? "打工精确表已经录入；在目标构建完成重复实测前，仍不进入规划器。"
       : "基础值、资金、压力、耗时和上限未完成重复实测前，不进入规划器。";
     return '<section class="detail-section"><h3>单次属性矩阵</h3>' + activityMatrix(item) + '</section><section class="detail-section"><h3>计算边界</h3><ul class="rule-list"><li>' + calculationBoundary + '</li>' +
-      (item.tierMultipliers ? '<li>单一来源报告的训练等级倍率为 1 / 2 / 3 / 4，当前仅作复测候选。</li>' : "") +
+      (item.tierMultipliers ? '<li>训练四级数值按初级 / 中级 / 高级 / 特级展示；费用、升级条件和属性上限仍待复测。</li>' : "") +
       '<li>方向标签不等于固定数值，随机或状态影响仍需单独校准。</li></ul></section>';
   }
 

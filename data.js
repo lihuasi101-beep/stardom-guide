@@ -44,6 +44,12 @@
       type: "用户提供截图",
       url: "assets/job-values-reference.png",
       note: "覆盖 12 项打工的门槛、属性增减、压力、名气、能力加权和收入，并包含慈善义工的“有新闻”变体；未印幅度的减益项按 −1 录入。"
+    },
+    "SRC-USER-TRAINING-TABLE-2026-08-04": {
+      title: "《训练项目》四级精确数值表",
+      type: "用户提供截图",
+      url: "assets/training-values-reference.png",
+      note: "覆盖说明书记载的 10 项训练，列出初级、中级、高级、特级的两项属性提升与压力增加。"
     }
   };
 
@@ -209,44 +215,50 @@
   });
 
   const trainingSeeds = [
-    ["etiquette", "礼仪训练", "handshake", ["appearance", "morality", "pressure"], [], { appearance: 2, morality: 1, pressure: 2 }],
-    ["posture", "美姿训练", "person-standing", ["appearance", "temperament", "pressure"], [], null],
-    ["dance", "舞蹈训练", "music-2", ["athletics", "rebellion", "pressure"], [], { athletics: 2, rebellion: 1, pressure: 2 }],
-    ["music_theory", "乐理训练", "notebook-tabs", ["temperament", "wisdom", "pressure"], [], { temperament: 2, wisdom: 1, pressure: 1 }],
-    ["vocalization", "发音训练", "mic-2", ["singing", "confidence", "pressure"], [], { singing: 3, confidence: 1, pressure: 2 }],
-    ["songwriting", "词曲训练", "pen-line", ["singing", "temperament", "pressure"], [], null],
-    ["instrument", "乐器训练", "guitar", ["singing", "rebellion", "pressure"], [], null],
-    ["expression", "表情训练", "drama", ["acting", "sexiness", "pressure"], [], null],
-    ["stage", "舞台训练", "theater", ["acting", "athletics", "pressure"], [], { acting: 3, athletics: 1, pressure: 3 }],
-    ["photography", "摄影训练", "camera", ["sexiness", "wisdom", "pressure"], [], { sexiness: 2, wisdom: 1, pressure: 2 }],
-    ["storyboard", "分镜训练", "panels-top-left", [], [], null]
+    { id: "etiquette", name: "礼仪训练", icon: "handshake", exact: { appearance: 2, morality: 1, pressure: 2 } },
+    { id: "posture", name: "美姿训练", icon: "person-standing", exact: { appearance: 2, temperament: 2, pressure: 2 } },
+    { id: "dance", name: "舞蹈训练", icon: "music-2", exact: { athletics: 2, rebellion: 1, pressure: 2 } },
+    { id: "music_theory", name: "乐理训练", icon: "notebook-tabs", exact: { temperament: 2, wisdom: 1, pressure: 1 } },
+    { id: "vocalization", name: "发音训练", icon: "mic-2", exact: { singing: 3, confidence: 1, pressure: 2 } },
+    { id: "songwriting", name: "词曲训练", icon: "pen-line", exact: { singing: 2, temperament: 2, pressure: 3 } },
+    { id: "instrument", name: "乐器训练", icon: "guitar", exact: { singing: 2, rebellion: 1, pressure: 2 } },
+    { id: "expression", name: "表情训练", icon: "drama", exact: { acting: 2, sexiness: 2, pressure: 2 } },
+    { id: "stage", name: "舞台训练", icon: "theater", exact: { acting: 3, athletics: 1, pressure: 3 } },
+    { id: "photography", name: "摄影训练", icon: "camera", exact: { sexiness: 2, wisdom: 1, pressure: 2 } },
+    { id: "storyboard", name: "分镜训练", icon: "panels-top-left", exact: null }
   ];
 
+  const communityTestedTrainingIds = ["etiquette", "dance", "music_theory", "vocalization", "stage", "photography"];
+
   const trainings = trainingSeeds.map(function (item) {
-    const isStoryboard = item[0] === "storyboard";
+    const isStoryboard = item.id === "storyboard";
+    const effectKeys = item.exact ? Object.keys(item.exact) : [];
+    const sourceRefs = isStoryboard
+      ? ["SRC-TARGET-BUILD-RESOURCE"]
+      : ["SRC-OFFICIAL-MANUAL", "SRC-USER-TRAINING-TABLE-2026-08-04"];
+    if (communityTestedTrainingIds.includes(item.id)) sourceRefs.push("SRC-BAHA-TEST-2017");
     return {
-      id: "activity.training." + item[0],
+      id: "activity.training." + item.id,
       type: "training",
-      name: item[1],
-      icon: item[2],
-      increase: item[3],
-      decrease: item[4],
+      name: item.name,
+      icon: item.icon,
+      increase: effectKeys.filter(function (key) { return item.exact[key] > 0; }),
+      decrease: effectKeys.filter(function (key) { return item.exact[key] < 0; }),
       cost: null,
       tiers: ["初级", "中级", "高级", "特级"],
       unlockStage: "条件不明",
-      unlock: isStoryboard ? "目标构建资源已确认课程存在，效果与解锁条件待校准。" : "训练等级存在，升级条件和费用仍待目标构建校准。",
-      status: isStoryboard ? "unknown" : (item[5] ? "single_source_empirical" : "direction_only"),
+      unlock: isStoryboard ? "目标构建资源已确认课程存在，效果与解锁条件待校准。" : "四级属性与压力数值已录入；升级条件和费用仍待目标构建校准。",
+      status: isStoryboard ? "unknown" : "user_supplied_exact",
       calculationEligible: false,
-      sourceRefs: isStoryboard
-        ? ["SRC-TARGET-BUILD-RESOURCE"]
-        : (item[5] ? ["SRC-OFFICIAL-MANUAL", "SRC-BAHA-TEST-2017"] : ["SRC-OFFICIAL-MANUAL"]),
-      exact: item[5],
-      tierMultipliers: item[5] ? [1, 2, 3, 4] : null
+      sourceRefs: sourceRefs,
+      exact: item.exact,
+      exactEvidence: isStoryboard ? null : "用户提供精确表",
+      tierMultipliers: item.exact ? [1, 2, 3, 4] : null
     };
   });
 
   window.STARDOM_DATA = {
-    version: "2026.08-M1",
+    version: "2026.08-M2",
     updatedAt: "2026-08-04",
     gameVersion: "1995 DOS 原版 · 简体目标构建",
     attributes: attributes,
@@ -257,7 +269,7 @@
     planner: {
       status: "calibrating",
       eligibleActivityCount: 0,
-      message: "12 项打工精确表已录入，但尚未完成目标构建复测；当前 23 项活动仍不进入自动规划计算。"
+      message: "12 项打工和 10 项训练精确表已录入，但费用、耗时、上限及分镜训练仍待校准；当前 23 项活动不进入自动规划计算。"
     }
   };
 })();
