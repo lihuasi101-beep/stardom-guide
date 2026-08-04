@@ -38,6 +38,12 @@
       type: "玩家单一实测",
       url: "https://forum.gamer.com.tw/C.php?bsn=866&snA=22790",
       note: "部分训练和登台作秀数值仍需在目标构建重复验证。"
+    },
+    "SRC-USER-JOB-TABLE-2026-08-04": {
+      title: "《打工项目》精确数值表",
+      type: "用户提供截图",
+      url: "assets/job-values-reference.png",
+      note: "覆盖 12 项打工的门槛、属性增减、压力、名气、能力加权和收入，并包含慈善义工的“有新闻”变体；未印幅度的减益项按 −1 录入。"
     }
   };
 
@@ -164,38 +170,41 @@
     }
   ];
 
-  const jobs = [
-    ["street_performance", "街头表演", "mic-vocal", ["confidence", "acting", "pressure", "fame"], ["temperament", "appearance"], null, 0],
-    ["folk_restaurant", "民歌演唱", "guitar", ["singing", "temperament", "fame", "pressure"], ["sexiness", "athletics"], 600, 1],
-    ["voice_acting", "人物配音", "radio", ["wisdom", "acting", "fame", "pressure"], ["singing", "sexiness"], null, 0],
-    ["backing_vocals", "幕后合音", "audio-lines", ["singing", "appearance", "pressure", "fame"], ["athletics", "acting"], 800, 2],
-    ["dance_floor_dj", "舞池 DJ", "disc-3", ["athletics", "rebellion", "fame", "pressure"], ["temperament", "singing"], 1000, 3],
-    ["backup_dancer", "舞群伴舞", "music", ["athletics", "confidence", "pressure", "fame"], ["wisdom", "appearance"], 800, 2],
-    ["art_photography", "艺术摄影", "camera", ["sexiness", "appearance", "fame", "pressure"], ["morality", "confidence"], 800, 2],
-    ["company_business", "公司事务", "briefcase-business", ["wisdom", "appearance", "fame", "pressure"], ["athletics", "rebellion"], 800, 2],
-    ["dance_hall_singing", "舞厅演唱", "mic-2", ["singing", "sexiness", "fame", "pressure"], ["acting", "morality"], 1200, 4],
-    ["extra_actor", "临时演员", "clapperboard", ["acting", "athletics", "fame", "pressure"], ["confidence", "wisdom"], 1000, 3],
-    ["charity_volunteer", "慈善义工", "heart-handshake", ["morality", "temperament", "fame", "pressure"], ["sexiness", "rebellion"], 1500, 5],
-    ["stage_show", "登台作秀", "star", ["sexiness", "confidence", "fame", "pressure"], ["temperament", "wisdom"], 1500, 5]
-  ].map(function (item) {
-    const isStage = item[0] === "stage_show";
+  const jobSeeds = [
+    { id: "company_business", name: "公司事务", icon: "briefcase-business", requirement: "无", unlockStage: "初始可用", income: 0, incomeCode: 0, abilityWeight: 0, exact: { wisdom: 1, temperament: 1, athletics: -1, rebellion: -1, pressure: -1, fame: -1 } },
+    { id: "street_performance", name: "街头表演", icon: "mic-vocal", requirement: "无", unlockStage: "初始可用", income: 600, incomeCode: 1, abilityWeight: 1, exact: { confidence: 2, acting: 1, temperament: -1, appearance: -1, pressure: 1, fame: 2 } },
+    { id: "charity_volunteer", name: "慈善义工", icon: "heart-handshake", requirement: "无", unlockNote: "无属性要求；有新闻时触发强化效果。", unlockStage: "初始可用", income: 0, incomeCode: 0, abilityWeight: 1, exact: { morality: 2, temperament: 1, sexiness: -1, rebellion: -1, pressure: -1, fame: 3 }, variants: [{ name: "有新闻", requirement: "有新闻", abilityWeight: 4, exact: { morality: 4, temperament: 2, rebellion: -1, sexiness: -1, pressure: -1, fame: 6 } }] },
+    { id: "extra_actor", name: "临时演员", icon: "clapperboard", requirement: "无", unlockStage: "初始可用", income: 800, incomeCode: 2, abilityWeight: 1, exact: { acting: 2, athletics: 1, confidence: -1, wisdom: -1, pressure: 2, fame: 2 } },
+    { id: "dance_floor_dj", name: "舞池 DJ", icon: "disc-3", requirement: "运动 80", unlockStage: "属性门槛", income: 1000, incomeCode: 3, abilityWeight: 1, exact: { athletics: 2, rebellion: 1, temperament: -1, singing: -1, pressure: 3, fame: 3 } },
+    { id: "backing_vocals", name: "幕后合音", icon: "audio-lines", requirement: "歌艺 80", unlockStage: "属性门槛", income: 800, incomeCode: 2, abilityWeight: 2, exact: { singing: 3, appearance: 1, athletics: -1, acting: -1, pressure: 3, fame: 1 } },
+    { id: "folk_restaurant", name: "民歌演唱", icon: "guitar", requirement: "歌艺 120", unlockStage: "属性门槛", income: 800, incomeCode: 2, abilityWeight: 3, exact: { singing: 3, temperament: 2, sexiness: -1, athletics: -1, pressure: 3, fame: 4 } },
+    { id: "voice_acting", name: "人物配音", icon: "radio", requirement: "智慧 100", unlockStage: "属性门槛", income: 800, incomeCode: 2, abilityWeight: 3, exact: { wisdom: 2, acting: 2, singing: -1, sexiness: -1, pressure: 3, fame: 4 } },
+    { id: "backup_dancer", name: "舞群伴舞", icon: "music", requirement: "运动 100", unlockStage: "属性门槛", income: 1200, incomeCode: 4, abilityWeight: 4, exact: { athletics: 3, confidence: 3, wisdom: -1, appearance: -1, pressure: 4, fame: 2 } },
+    { id: "dance_hall_singing", name: "舞厅演唱", icon: "mic-2", requirement: "歌艺 120", unlockStage: "属性门槛", income: 1000, incomeCode: 3, abilityWeight: 6, exact: { singing: 4, sexiness: 4, acting: -1, morality: -1, pressure: 4, fame: 5 } },
+    { id: "art_photography", name: "艺术摄影", icon: "camera", requirement: "性感 100", unlockStage: "属性门槛", income: 1500, incomeCode: 5, abilityWeight: 4, exact: { sexiness: 4, appearance: 2, morality: -1, confidence: -1, pressure: 5, fame: 5 } },
+    { id: "stage_show", name: "登台作秀", icon: "star", requirement: "名气 200", unlockStage: "属性门槛", income: 1500, incomeCode: 5, abilityWeight: 6, exact: { sexiness: 5, confidence: 3, temperament: -1, wisdom: -1, pressure: 5, fame: 6 } }
+  ];
+
+  const jobs = jobSeeds.map(function (item) {
+    const effectKeys = Object.keys(item.exact);
     return {
-      id: "activity.job." + item[0],
+      id: "activity.job." + item.id,
       type: "job",
-      name: item[1],
-      icon: item[2],
-      increase: item[3],
-      decrease: item[4],
-      income: item[5],
-      incomeCode: item[6],
-      unlockStage: isStage ? "后期候选" : "条件不明",
-      unlock: isStage ? "玩家实测报告称名气 > 200，目标构建尚待重复验证。" : "具体解锁前置仍在目标构建校准中。",
-      status: isStage ? "single_source_empirical" : (item[5] ? "partial_runtime" : "direction_only"),
+      name: item.name,
+      icon: item.icon,
+      increase: effectKeys.filter(function (key) { return item.exact[key] > 0; }),
+      decrease: effectKeys.filter(function (key) { return item.exact[key] < 0; }),
+      income: item.income,
+      incomeCode: item.incomeCode,
+      abilityWeight: item.abilityWeight,
+      unlockStage: item.unlockStage,
+      unlock: item.unlockNote || (item.requirement === "无" ? "无属性要求。" : "要求：" + item.requirement + "。"),
+      status: "user_supplied_exact",
       calculationEligible: false,
-      sourceRefs: isStage
-        ? ["SRC-OFFICIAL-MANUAL", "SRC-TARGET-BUILD-SAVE", "SRC-BAHA-TEST-2017"]
-        : ["SRC-OFFICIAL-MANUAL", "SRC-TARGET-BUILD-SAVE"],
-      exact: isStage ? { sexiness: 5, confidence: 3, fame: 6, pressure: 5, temperament: -1, wisdom: -1 } : null
+      sourceRefs: ["SRC-OFFICIAL-MANUAL", "SRC-USER-JOB-TABLE-2026-08-04"],
+      exact: item.exact,
+      exactEvidence: "用户提供精确表",
+      variants: item.variants || []
     };
   });
 
@@ -237,8 +246,8 @@
   });
 
   window.STARDOM_DATA = {
-    version: "2026.08-M0",
-    updatedAt: "2026-08-03",
+    version: "2026.08-M1",
+    updatedAt: "2026-08-04",
     gameVersion: "1995 DOS 原版 · 简体目标构建",
     attributes: attributes,
     sources: sources,
@@ -248,7 +257,7 @@
     planner: {
       status: "calibrating",
       eligibleActivityCount: 0,
-      message: "当前 23 项活动尚未达到重复实测准入门槛。规划器保留输入与诊断，但不会生成伪精确方案。"
+      message: "12 项打工精确表已录入，但尚未完成目标构建复测；当前 23 项活动仍不进入自动规划计算。"
     }
   };
 })();

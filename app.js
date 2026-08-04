@@ -13,6 +13,7 @@
   const statusMeta = {
     official_partial: { label: "官方规则", className: "official", description: "官方说明书确认赛事结构，完整评分公式未公开。" },
     partial_runtime: { label: "部分实测", className: "partial", description: "方向由官方说明书确认，工资码来自目标构建样本。" },
+    user_supplied_exact: { label: "精确表", className: "partial", description: "已按用户提供的完整数值表录入，尚未在目标构建重复验证。" },
     direction_only: { label: "仅确认方向", className: "pending", description: "只确认属性增减方向，不能作为精确计算值。" },
     single_source_empirical: { label: "单一实测", className: "pending", description: "存在玩家实测数字，但尚未在目标构建重复验证。" },
     unknown: { label: "待验证", className: "conflict", description: "目标构建确认条目存在，效果与条件尚未确定。" }
@@ -97,6 +98,17 @@
     }).join("") + "</div>";
   }
 
+  function effectTags(item, type, limit) {
+    const keys = type === "gain" ? item.increase : item.decrease;
+    const items = (keys || []).slice(0, limit || keys.length);
+    if (!items.length) return '<span class="tag neutral">无</span>';
+    return '<div class="tag-list">' + items.map(function (key) {
+      const value = item.exact && item.exact[key];
+      const signedValue = value == null ? (type === "gain" ? "+" : "−") : (value > 0 ? "+" + value : String(value).replace("-", "−"));
+      return '<span class="tag ' + type + '">' + escapeHtml(attributeName(key)) + signedValue + "</span>";
+    }).join("") + "</div>";
+  }
+
   function statusPill(status) {
     const meta = statusMeta[status] || statusMeta.unknown;
     return '<span class="status-pill ' + meta.className + '">' + meta.label + "</span>";
@@ -156,7 +168,7 @@
     } else if (kind === "jobs") {
       controls = filterMenu("关联属性", "attributes", Object.keys(data.attributes).map(function (key) { return { value: key, label: attributeName(key) }; }), current.attributes) +
         '<select class="filter-select" name="direction" aria-label="属性方向"><option value="any">增益或减益</option><option value="gain" ' + (current.direction === "gain" ? "selected" : "") + '>仅增益</option><option value="loss" ' + (current.direction === "loss" ? "selected" : "") + '>仅减益</option></select>' +
-        filterMenu("解锁阶段", "stages", ["条件不明", "后期候选"], current.stages);
+        filterMenu("解锁阶段", "stages", ["初始可用", "属性门槛"], current.stages);
     } else {
       controls = filterMenu("增益属性", "gains", Object.keys(data.attributes).map(function (key) { return { value: key, label: attributeName(key) }; }), current.gains) +
         filterMenu("减益属性", "losses", Object.keys(data.attributes).map(function (key) { return { value: key, label: attributeName(key) }; }), current.losses);
@@ -289,7 +301,7 @@
     } else if (kind === "jobs") {
       head = '<tr><th>打工名称</th><th>解锁阶段</th><th>解锁摘要</th><th>' + sortButton(kind, "income", "薪资") + '</th><th>' + sortButton(kind, "gain", "主要增益") + '</th><th>主要减益</th><th>置信等级</th></tr>';
       body = rows.map(function (item) {
-        return '<tr tabindex="0" data-kind="job" data-item-id="' + item.id + '"><td><div class="name-cell"><span class="row-icon job"><i data-lucide="' + item.icon + '"></i></span><span><b>' + item.name + '</b><small>工资码 ' + item.incomeCode + '</small></span></div></td><td>' + item.unlockStage + '</td><td>' + escapeHtml(item.unlock) + '</td><td><b>' + money(item.income) + '</b></td><td>' + tags(item.increase, "gain", 3) + '</td><td>' + tags(item.decrease, "loss", 3) + '</td><td>' + statusPill(item.status) + '</td></tr>';
+        return '<tr tabindex="0" data-kind="job" data-item-id="' + item.id + '"><td><div class="name-cell"><span class="row-icon job"><i data-lucide="' + item.icon + '"></i></span><span><b>' + item.name + '</b><small>能力加权 ' + item.abilityWeight + ' · 工资码 ' + item.incomeCode + '</small></span></div></td><td>' + item.unlockStage + '</td><td>' + escapeHtml(item.unlock) + '</td><td><b>' + money(item.income) + '</b></td><td>' + effectTags(item, "gain", 4) + '</td><td>' + effectTags(item, "loss", 4) + '</td><td>' + statusPill(item.status) + '</td></tr>';
       }).join("");
     } else {
       head = '<tr><th>训练名称</th><th>' + sortButton(kind, "cost", "费用") + '</th><th>' + sortButton(kind, "gain", "主要增益") + '</th><th>主要减益</th><th>等级/阶段</th><th>置信等级</th></tr>';
@@ -339,24 +351,32 @@
     }).join("");
   }
 
-  function activityMatrix(item) {
+  function exactMatrix(exact, evidenceLabel, increase, decrease) {
     const keys = Object.keys(data.attributes);
     return '<table class="matrix-table"><thead><tr><th>属性</th><th>方向/基础值</th><th>证据</th></tr></thead><tbody>' + keys.map(function (key) {
       let value = "—";
       let evidence = "无变化资料";
-      if (item.exact && Object.prototype.hasOwnProperty.call(item.exact, key)) {
-        const exact = item.exact[key];
-        value = exact > 0 ? "+" + exact : String(exact);
-        evidence = "单一玩家实测";
-      } else if (item.increase.includes(key)) {
+      if (exact && Object.prototype.hasOwnProperty.call(exact, key)) {
+        const exactValue = exact[key];
+        value = exactValue > 0 ? "+" + exactValue : String(exactValue).replace("-", "−");
+        evidence = evidenceLabel;
+      } else if ((increase || []).includes(key)) {
         value = "+ 方向已知";
         evidence = "官方说明书";
-      } else if (item.decrease.includes(key)) {
+      } else if ((decrease || []).includes(key)) {
         value = "− 方向已知";
         evidence = "官方说明书";
       }
       return "<tr><td>" + attributeName(key) + "</td><td>" + value + "</td><td>" + evidence + "</td></tr>";
     }).join("") + "</tbody></table>";
+  }
+
+  function activityMatrix(item) {
+    let content = exactMatrix(item.exact, item.exactEvidence || "单一玩家实测", item.increase, item.decrease);
+    (item.variants || []).forEach(function (variant) {
+      content += '<section class="detail-section variant-matrix"><h3>' + escapeHtml(variant.name) + '变体</h3><p>触发条件：' + escapeHtml(variant.requirement) + '；能力加权 ' + variant.abilityWeight + '。</p>' + exactMatrix(variant.exact, item.exactEvidence || "单一玩家实测", [], []) + '</section>';
+    });
+    return content;
   }
 
   function drawerContent() {
@@ -385,10 +405,14 @@
         '<div class="detail-field"><small>类型</small><b>' + (context.kind === "job" ? "打工" : "训练") + '</b></div>' +
         '<div class="detail-field"><small>' + unit + '</small><b>' + amount + '</b></div>' +
         '<div class="detail-field"><small>解锁阶段</small><b>' + item.unlockStage + '</b></div>' +
+        (context.kind === "job" ? '<div class="detail-field"><small>能力加权</small><b>' + item.abilityWeight + '</b></div>' : '') +
         '<div class="detail-field"><small>计算准入</small><b>暂不可用</b></div>' +
-        '</div></section><section class="detail-section"><h3>解锁与阶段</h3><p>' + escapeHtml(item.unlock) + '</p></section><section class="detail-section"><h3>主要变化</h3>' + tags(item.increase, "gain") + tags(item.decrease, "loss") + '</section>';
+        '</div></section><section class="detail-section"><h3>解锁与阶段</h3><p>' + escapeHtml(item.unlock) + '</p></section><section class="detail-section"><h3>主要变化</h3>' + effectTags(item, "gain") + effectTags(item, "loss") + '</section>';
     }
-    return '<section class="detail-section"><h3>单次属性矩阵</h3>' + activityMatrix(item) + '</section><section class="detail-section"><h3>计算边界</h3><ul class="rule-list"><li>基础值、资金、压力、耗时和上限未完成重复实测前，不进入规划器。</li>' +
+    const calculationBoundary = context.kind === "job"
+      ? "打工精确表已经录入；在目标构建完成重复实测前，仍不进入规划器。"
+      : "基础值、资金、压力、耗时和上限未完成重复实测前，不进入规划器。";
+    return '<section class="detail-section"><h3>单次属性矩阵</h3>' + activityMatrix(item) + '</section><section class="detail-section"><h3>计算边界</h3><ul class="rule-list"><li>' + calculationBoundary + '</li>' +
       (item.tierMultipliers ? '<li>单一来源报告的训练等级倍率为 1 / 2 / 3 / 4，当前仅作复测候选。</li>' : "") +
       '<li>方向标签不等于固定数值，随机或状态影响仍需单独校准。</li></ul></section>';
   }
