@@ -181,14 +181,14 @@
     { id: "street_performance", name: "街头表演", icon: "mic-vocal", requirement: "无", unlockStage: "初始可用", income: 600, incomeCode: 1, abilityWeight: 1, exact: { confidence: 2, acting: 1, temperament: -1, appearance: -1, pressure: 1, fame: 2 } },
     { id: "charity_volunteer", name: "慈善义工", icon: "heart-handshake", requirement: "无", unlockNote: "无属性要求；有新闻时触发强化效果。", unlockStage: "初始可用", income: 0, incomeCode: 0, abilityWeight: 1, exact: { morality: 2, temperament: 1, sexiness: -1, rebellion: -1, pressure: -1, fame: 3 }, variants: [{ name: "有新闻", requirement: "有新闻", abilityWeight: 4, exact: { morality: 4, temperament: 2, rebellion: -1, sexiness: -1, pressure: -1, fame: 6 } }] },
     { id: "extra_actor", name: "临时演员", icon: "clapperboard", requirement: "无", unlockStage: "初始可用", income: 800, incomeCode: 2, abilityWeight: 1, exact: { acting: 2, athletics: 1, confidence: -1, wisdom: -1, pressure: 2, fame: 2 } },
-    { id: "dance_floor_dj", name: "舞池 DJ", icon: "disc-3", requirement: "运动 80", unlockStage: "属性门槛", income: 1000, incomeCode: 3, abilityWeight: 1, exact: { athletics: 2, rebellion: 1, temperament: -1, singing: -1, pressure: 3, fame: 3 } },
-    { id: "backing_vocals", name: "幕后合音", icon: "audio-lines", requirement: "歌艺 80", unlockStage: "属性门槛", income: 800, incomeCode: 2, abilityWeight: 2, exact: { singing: 3, appearance: 1, athletics: -1, acting: -1, pressure: 3, fame: 1 } },
-    { id: "folk_restaurant", name: "民歌演唱", icon: "guitar", requirement: "歌艺 120", unlockStage: "属性门槛", income: 800, incomeCode: 2, abilityWeight: 3, exact: { singing: 3, temperament: 2, sexiness: -1, athletics: -1, pressure: 3, fame: 4 } },
-    { id: "voice_acting", name: "人物配音", icon: "radio", requirement: "智慧 100", unlockStage: "属性门槛", income: 800, incomeCode: 2, abilityWeight: 3, exact: { wisdom: 2, acting: 2, singing: -1, sexiness: -1, pressure: 3, fame: 4 } },
-    { id: "backup_dancer", name: "舞群伴舞", icon: "music", requirement: "运动 100", unlockStage: "属性门槛", income: 1200, incomeCode: 4, abilityWeight: 4, exact: { athletics: 3, confidence: 3, wisdom: -1, appearance: -1, pressure: 4, fame: 2 } },
-    { id: "dance_hall_singing", name: "舞厅演唱", icon: "mic-2", requirement: "歌艺 120", unlockStage: "属性门槛", income: 1000, incomeCode: 3, abilityWeight: 6, exact: { singing: 4, sexiness: 4, acting: -1, morality: -1, pressure: 4, fame: 5 } },
-    { id: "art_photography", name: "艺术摄影", icon: "camera", requirement: "性感 100", unlockStage: "属性门槛", income: 1500, incomeCode: 5, abilityWeight: 4, exact: { sexiness: 4, appearance: 2, morality: -1, confidence: -1, pressure: 5, fame: 5 } },
-    { id: "stage_show", name: "登台作秀", icon: "star", requirement: "名气 200", unlockStage: "属性门槛", income: 1500, incomeCode: 5, abilityWeight: 6, exact: { sexiness: 5, confidence: 3, temperament: -1, wisdom: -1, pressure: 5, fame: 6 } }
+    { id: "dance_floor_dj", name: "舞池 DJ", icon: "disc-3", requirement: "运动 80", requirementAttribute: "athletics", requirementValue: 80, unlockStage: "属性门槛", income: 1000, incomeCode: 3, abilityWeight: 1, exact: { athletics: 2, rebellion: 1, temperament: -1, singing: -1, pressure: 3, fame: 3 } },
+    { id: "backing_vocals", name: "幕后合音", icon: "audio-lines", requirement: "歌艺 80", requirementAttribute: "singing", requirementValue: 80, unlockStage: "属性门槛", income: 800, incomeCode: 2, abilityWeight: 2, exact: { singing: 3, appearance: 1, athletics: -1, acting: -1, pressure: 3, fame: 1 } },
+    { id: "folk_restaurant", name: "民歌演唱", icon: "guitar", requirement: "歌艺 120", requirementAttribute: "singing", requirementValue: 120, unlockStage: "属性门槛", income: 800, incomeCode: 2, abilityWeight: 3, exact: { singing: 3, temperament: 2, sexiness: -1, athletics: -1, pressure: 3, fame: 4 } },
+    { id: "voice_acting", name: "人物配音", icon: "radio", requirement: "智慧 100", requirementAttribute: "wisdom", requirementValue: 100, unlockStage: "属性门槛", income: 800, incomeCode: 2, abilityWeight: 3, exact: { wisdom: 2, acting: 2, singing: -1, sexiness: -1, pressure: 3, fame: 4 } },
+    { id: "backup_dancer", name: "舞群伴舞", icon: "music", requirement: "运动 100", requirementAttribute: "athletics", requirementValue: 100, unlockStage: "属性门槛", income: 1200, incomeCode: 4, abilityWeight: 4, exact: { athletics: 3, confidence: 3, wisdom: -1, appearance: -1, pressure: 4, fame: 2 } },
+    { id: "dance_hall_singing", name: "舞厅演唱", icon: "mic-2", requirement: "歌艺 120", requirementAttribute: "singing", requirementValue: 120, unlockStage: "属性门槛", income: 1000, incomeCode: 3, abilityWeight: 6, exact: { singing: 4, sexiness: 4, acting: -1, morality: -1, pressure: 4, fame: 5 } },
+    { id: "art_photography", name: "艺术摄影", icon: "camera", requirement: "性感 100", requirementAttribute: "sexiness", requirementValue: 100, unlockStage: "属性门槛", income: 1500, incomeCode: 5, abilityWeight: 4, exact: { sexiness: 4, appearance: 2, morality: -1, confidence: -1, pressure: 5, fame: 5 } },
+    { id: "stage_show", name: "登台作秀", icon: "star", requirement: "名气 200", requirementAttribute: "fame", requirementValue: 200, unlockStage: "属性门槛", income: 1500, incomeCode: 5, abilityWeight: 6, exact: { sexiness: 5, confidence: 3, temperament: -1, wisdom: -1, pressure: 5, fame: 6 } }
   ];
 
   const jobs = jobSeeds.map(function (item) {
@@ -204,9 +204,13 @@
       incomeCode: item.incomeCode,
       abilityWeight: item.abilityWeight,
       unlockStage: item.unlockStage,
+      requirement: item.requirement,
+      requirementAttribute: item.requirementAttribute || null,
+      requirementValue: item.requirementValue || null,
       unlock: item.unlockNote || (item.requirement === "无" ? "无属性要求。" : "要求：" + item.requirement + "。"),
       status: "user_supplied_exact",
       calculationEligible: false,
+      estimateEligible: true,
       sourceRefs: ["SRC-OFFICIAL-MANUAL", "SRC-USER-JOB-TABLE-2026-08-04"],
       exact: item.exact,
       exactEvidence: "用户提供精确表",
@@ -246,6 +250,7 @@
       unlock: "四级属性与压力数值已录入；升级条件和费用仍待目标构建校准。",
       status: "user_supplied_exact",
       calculationEligible: false,
+      estimateEligible: true,
       sourceRefs: sourceRefs,
       exact: item.exact,
       exactEvidence: "用户提供精确表",
@@ -254,7 +259,7 @@
   });
 
   window.STARDOM_DATA = {
-    version: "2026.08-M3",
+    version: "2026.08-M4",
     updatedAt: "2026-08-04",
     gameVersion: "1995 DOS 原版 · 简体目标构建",
     attributes: attributes,
@@ -263,9 +268,12 @@
     jobs: jobs,
     trainings: trainings,
     planner: {
-      status: "calibrating",
+      status: "estimate_ready",
       eligibleActivityCount: 0,
-      message: "12 项打工和 10 项训练精确表已录入，但费用、耗时和上限仍待校准；当前 22 项活动不进入自动规划计算。"
+      estimateActivityCount: 22,
+      maxActionsPerWeek: 7,
+      deadline: "1996-12-31",
+      message: "使用 12 项打工和 10 项训练精确表估算；每次活动按 1 天计算，训练费用、成长上限与随机波动暂不计入。"
     }
   };
 })();

@@ -154,7 +154,7 @@
         (award.primary ? "<em>三大主奖</em>" : "<em>票选</em>") +
       "</div>";
     }).join("") + "</div>";
-    document.getElementById("overview-plan-state").textContent = data.planner.eligibleActivityCount;
+    document.getElementById("overview-plan-state").textContent = data.planner.estimateActivityCount;
   }
 
   function filterMenu(label, name, options, selected) {
@@ -430,12 +430,12 @@
         '<div class="detail-field"><small>' + unit + '</small><b>' + amount + '</b></div>' +
         '<div class="detail-field"><small>解锁阶段</small><b>' + item.unlockStage + '</b></div>' +
         (context.kind === "job" ? '<div class="detail-field"><small>能力加权</small><b>' + item.abilityWeight + '</b></div>' : '') +
-        '<div class="detail-field"><small>计算准入</small><b>暂不可用</b></div>' +
+        '<div class="detail-field"><small>规划状态</small><b>最快估算可用</b></div>' +
         '</div></section><section class="detail-section"><h3>解锁与阶段</h3><p>' + escapeHtml(item.unlock) + '</p></section><section class="detail-section"><h3>主要变化</h3>' + effectSummary + '</section>';
     }
     const calculationBoundary = context.kind === "job"
-      ? "打工精确表已经录入；在目标构建完成重复实测前，仍不进入规划器。"
-      : "基础值、资金、压力、耗时和上限未完成重复实测前，不进入规划器。";
+      ? "打工精确表已经录入，可用于最快达标估算；目标构建重复实测前不视为验证方案。"
+      : "四级属性与压力值可用于最快达标估算；训练费用、耗时和上限仍作为未校准边界提示。";
     return '<section class="detail-section"><h3>单次属性矩阵</h3>' + activityMatrix(item) + '</section><section class="detail-section"><h3>计算边界</h3><ul class="rule-list"><li>' + calculationBoundary + '</li>' +
       (item.tierMultipliers ? '<li>训练四级数值按初级 / 中级 / 高级 / 特级展示；费用、升级条件和属性上限仍待复测。</li>' : "") +
       '<li>方向标签不等于固定数值，随机或状态影响仍需单独校准。</li></ul></section>';
@@ -479,16 +479,58 @@
     return Object.keys(data.attributes).filter(function (key) { return key !== "pressure"; });
   }
 
+  function allPlannerActivities() {
+    return data.jobs.concat(data.trainings);
+  }
+
+  function plannerTierName(index) {
+    return ["初级", "中级", "高级", "特级"][Number(index) || 0];
+  }
+
+  function plannerActivityHtml(item) {
+    const inputId = "planner-" + item.id.replace(/[^a-z0-9_-]/gi, "-");
+    const detail = item.type === "job" ? item.requirement : "选择当前课程等级";
+    const tierControl = item.type === "training"
+      ? '<select name="tier.' + item.id + '" aria-label="' + escapeHtml(item.name) + '等级"><option value="0">初级</option><option value="1">中级</option><option value="2">高级</option><option value="3">特级</option></select>'
+      : '<small>' + escapeHtml(detail) + '</small>';
+    return '<div class="activity-option ' + item.type + '-option" data-planner-activity="' + item.id + '">' +
+      '<input id="' + inputId + '" type="checkbox" name="activity" value="' + item.id + '">' +
+      '<label for="' + inputId + '"><b>' + escapeHtml(item.name) + '</b><small>' + (item.type === "job" ? "打工" : "训练") + ' · 估算可用</small></label>' + tierControl + '</div>';
+  }
+
+  function updateActivitySelectionSummary() {
+    const selected = Array.from(refs.plannerForm.querySelectorAll('input[name="activity"]:checked'));
+    const jobs = selected.filter(function (input) { return input.value.indexOf("activity.job.") === 0; }).length;
+    const trainings = selected.length - jobs;
+    document.getElementById("activity-selection-summary").textContent = "已选 " + selected.length + " 项：打工 " + jobs + " 项，训练 " + trainings + " 项";
+  }
+
+  function setPlannerActivitySelection(mode) {
+    const currentValues = {};
+    plannerAttributes().forEach(function (key) {
+      currentValues[key] = Number(refs.plannerForm.elements["current." + key].value || 0);
+    });
+    allPlannerActivities().forEach(function (item) {
+      const input = refs.plannerForm.querySelector('input[name="activity"][value="' + item.id + '"]');
+      if (!input) return;
+      if (mode === "all") input.checked = true;
+      if (mode === "none") input.checked = false;
+      if (mode === "recommended") {
+        input.checked = item.type === "training" || !item.requirementAttribute || currentValues[item.requirementAttribute] >= item.requirementValue;
+      }
+    });
+    updateActivitySelectionSummary();
+  }
+
   function renderPlannerForm() {
     document.getElementById("planner-status-message").textContent = data.planner.message;
     document.getElementById("attribute-editor").innerHTML = plannerAttributes().map(function (key) {
       return '<label class="attribute-row"><span>' + attributeName(key) + '</span><input type="number" min="0" max="999" step="1" name="current.' + key + '" value="100" aria-label="' + attributeName(key) + '当前值"><i>→</i><input type="number" min="0" max="999" step="1" name="target.' + key + '" value="100" aria-label="' + attributeName(key) + '目标值"></label>';
     }).join("");
 
-    const allActivities = data.jobs.concat(data.trainings);
-    document.getElementById("planner-activities").innerHTML = allActivities.map(function (item) {
-      return '<label class="activity-option"><input type="checkbox" name="activity" value="' + item.id + '" ' + (item.calculationEligible ? "" : "disabled") + '><b>' + item.name + '</b><small>' + (item.calculationEligible ? "可计算" : "校准中") + '</small></label>';
-    }).join("");
+    document.getElementById("planner-activities").innerHTML =
+      '<section class="activity-group"><div class="activity-group-heading"><b>打工</b><span>' + data.jobs.length + ' 项</span></div>' + data.jobs.map(plannerActivityHtml).join("") + '</section>' +
+      '<section class="activity-group"><div class="activity-group-heading"><b>训练</b><span>' + data.trainings.length + ' 项 · 独立等级</span></div>' + data.trainings.map(plannerActivityHtml).join("") + '</section>';
     restorePlanner();
   }
 
@@ -512,6 +554,10 @@
       pressureLimit: Number(formData.get("pressureLimit") || 80),
       strategy: formData.get("strategy") || "fastest",
       activities: formData.getAll("activity"),
+      trainingTiers: data.trainings.reduce(function (tiers, item) {
+        tiers[item.id] = Number(formData.get("tier." + item.id) || 0);
+        return tiers;
+      }, {}),
       attributes: attrs
     };
   }
@@ -532,24 +578,41 @@
   function restorePlanner() {
     try {
       const saved = JSON.parse(localStorage.getItem("stardomGuide.latestPlan") || "null");
-      if (!saved || !saved.input) return;
+      if (!saved || !saved.input) {
+        setPlannerActivitySelection("recommended");
+        return;
+      }
       const input = saved.input;
       ["year", "month", "day", "funds", "pressure", "pressureLimit"].forEach(function (name) {
         const field = refs.plannerForm.elements[name];
         if (field && input[name] != null) field.value = input[name];
       });
       const strategy = refs.plannerForm.querySelector('input[name="strategy"][value="' + input.strategy + '"]');
-      if (strategy) strategy.checked = true;
+      if (strategy && !strategy.disabled) strategy.checked = true;
+      else refs.plannerForm.elements.strategy.value = "fastest";
       plannerAttributes().forEach(function (key) {
         if (!input.attributes || !input.attributes[key]) return;
         refs.plannerForm.elements["current." + key].value = input.attributes[key].current;
         refs.plannerForm.elements["target." + key].value = input.attributes[key].target;
       });
+      data.trainings.forEach(function (item) {
+        const tier = refs.plannerForm.elements["tier." + item.id];
+        if (tier && input.trainingTiers && input.trainingTiers[item.id] != null) tier.value = input.trainingTiers[item.id];
+      });
+      if (input.dataVersion === data.version && Array.isArray(input.activities)) {
+        refs.plannerForm.querySelectorAll('input[name="activity"]').forEach(function (checkbox) {
+          checkbox.checked = input.activities.includes(checkbox.value);
+        });
+      } else {
+        setPlannerActivitySelection("recommended");
+      }
       document.getElementById("pressure-limit-value").textContent = input.pressureLimit || 80;
+      updateActivitySelectionSummary();
       updateLastPlan(input);
-      if (saved.result) renderPlannerResult(saved.result);
+      if (saved.result && input.dataVersion === data.version) renderPlannerResult(saved.result);
     } catch (error) {
       refs.saveState.textContent = "本地方案读取失败";
+      setPlannerActivitySelection("recommended");
     }
   }
 
@@ -563,12 +626,340 @@
       : input.year + " 年 " + input.month + " 月 " + input.day + " 日 · 尚未设置提高目标";
   }
 
-  function renderPlannerResult(result) {
+  function renderPlannerDiagnostics(result) {
     const strategyNames = { fastest: "最快达标", cheapest: "最低花费", balanced: "均衡" };
     refs.plannerOutput.innerHTML = '<div class="unreachable-plan"><div class="result-header"><span class="empty-illustration"><i data-lucide="circle-slash-2"></i></span><div><p class="empty-kicker">当前不可计算</p><h3>' + escapeHtml(result.title) + '</h3><p>' + escapeHtml(strategyNames[result.strategy] || "均衡") + ' · 数据版本 ' + data.version + '</p></div></div><div class="diagnostic-list">' + result.diagnostics.map(function (diagnostic) {
       return '<div class="diagnostic-item"><i data-lucide="' + diagnostic.icon + '"></i><div><b>' + escapeHtml(diagnostic.title) + '</b><span>' + escapeHtml(diagnostic.text) + '</span></div></div>';
     }).join("") + '</div></div>';
     iconRefresh();
+  }
+
+  function signedNumber(value) {
+    return value > 0 ? "+" + value : String(value).replace("-", "−");
+  }
+
+  function formatPlanDate(isoDate) {
+    const parts = String(isoDate).split("-").map(Number);
+    return parts[0] + " 年 " + parts[1] + " 月 " + parts[2] + " 日";
+  }
+
+  function renderPlannerSuccess(result) {
+    const includesTraining = result.usedTraining === true || result.warnings.some(function (warning) { return warning.indexOf("方案使用训练项目") >= 0; });
+    const targetRows = result.targets.map(function (target) {
+      return '<div class="plan-target-row"><div><b>' + escapeHtml(attributeName(target.key)) + '</b><span>' + target.start + ' → ' + target.end + ' / ' + target.target + '</span></div><div class="plan-progress"><i style="width:' + target.progress + '%"></i></div></div>';
+    }).join("");
+    const weekRows = result.weeks.map(function (week, index) {
+      const activityText = week.activities.map(function (activity) {
+        return escapeHtml(activity.name + (activity.tier ? "（" + activity.tier + "）" : "") + " ×" + activity.count);
+      }).join("、");
+      const changeText = week.targetChanges.filter(function (change) { return change.value !== 0; }).map(function (change) {
+        return attributeName(change.key) + " " + signedNumber(change.value);
+      }).join("、") || "目标属性无净变化";
+      return '<details class="week-plan" ' + (index === 0 ? "open" : "") + '><summary><span><b>第 ' + week.number + ' 周</b><small>' + escapeHtml(week.dateRange) + '</small></span><em>' + week.actionCount + ' 次</em><i data-lucide="chevron-down"></i></summary><div class="week-plan-body"><p class="week-activities">' + activityText + '</p><div class="week-metrics"><span><small>目标变化</small><b>' + escapeHtml(changeText) + '</b></span><span><small>周末压力</small><b>' + week.endPressure + ' / ' + result.pressureLimit + '</b></span><span><small>已知收入</small><b>' + money(week.knownIncome) + '</b></span></div><p class="week-reason"><i data-lucide="lightbulb"></i>' + escapeHtml(week.reason) + '</p></div></details>';
+    }).join("");
+    const activityRows = result.activityTotals.map(function (activity) {
+      return '<div class="activity-total-row"><span><i data-lucide="' + activity.icon + '"></i><b>' + escapeHtml(activity.name) + '</b>' + (activity.tier ? '<small>' + escapeHtml(activity.tier) + '</small>' : '') + '</span><strong>×' + activity.count + '</strong></div>';
+    }).join("");
+    const warningRows = result.warnings.map(function (warning) {
+      return '<li><i data-lucide="triangle-alert"></i><span>' + escapeHtml(warning) + '</span></li>';
+    }).join("");
+    refs.plannerOutput.innerHTML = '<div class="plan-result"><div class="result-header success"><span class="empty-illustration"><i data-lucide="zap"></i></span><div><p class="empty-kicker">最快达标 · 估算方案</p><h3>预计 ' + result.weeks.length + ' 周，' + result.totalActions + ' 次活动达标</h3><p>预计完成：' + formatPlanDate(result.completionDate) + ' · 数据版本 ' + data.version + '</p></div></div>' +
+      '<div class="plan-summary-grid"><div><small>活动次数</small><b>' + result.totalActions + '</b><span>每天 1 次</span></div><div><small>预计周数</small><b>' + result.weeks.length + '</b><span>每周最多 7 次</span></div><div><small>最高压力</small><b>' + result.maxPressure + '</b><span>安全线 ' + result.pressureLimit + '</span></div><div><small>期末资金</small><b>' + money(result.finalFunds) + '</b><span>' + (includesTraining ? "未扣训练费" : "按打工收入计算") + '</span></div></div>' +
+      '<section class="plan-section"><div class="plan-section-heading"><span><i data-lucide="target"></i>目标结果</span><small>全部达到</small></div><div class="plan-target-list">' + targetRows + '</div></section>' +
+      '<section class="plan-section"><div class="plan-section-heading"><span><i data-lucide="calendar-range"></i>每周安排</span><small>只给次数，不固定星期</small></div><div class="week-plan-list">' + weekRows + '</div></section>' +
+      '<section class="plan-section split"><div><div class="plan-section-heading"><span><i data-lucide="list-checks"></i>活动合计</span></div><div class="activity-total-list">' + activityRows + '</div></div><div><div class="plan-section-heading"><span><i data-lucide="shield-alert"></i>估算边界</span></div><ul class="plan-warning-list">' + warningRows + '</ul></div></section></div>';
+    iconRefresh();
+  }
+
+  function renderPlannerResult(result) {
+    if (result.status === "success") renderPlannerSuccess(result);
+    else renderPlannerDiagnostics(result);
+  }
+
+  function plannerAction(item, snapshot, targetKeys) {
+    const tierIndex = item.type === "training" ? Number((snapshot.trainingTiers || {})[item.id] || 0) : null;
+    const multiplier = item.type === "training" ? Number(item.tierMultipliers[tierIndex] || 1) : 1;
+    const effect = {};
+    Object.keys(item.exact || {}).forEach(function (key) { effect[key] = item.exact[key] * multiplier; });
+    return {
+      id: item.id,
+      name: item.name,
+      icon: item.icon,
+      type: item.type,
+      tier: item.type === "training" ? plannerTierName(tierIndex) : null,
+      effect: effect,
+      targetDeltas: targetKeys.map(function (key) { return effect[key] || 0; }),
+      pressureDelta: effect.pressure || 0,
+      income: item.type === "job" ? Number(item.income || 0) : 0,
+      nonTargetLoss: Object.keys(effect).filter(function (key) { return key !== "pressure" && !targetKeys.includes(key) && effect[key] < 0; }).reduce(function (sum, key) { return sum + Math.abs(effect[key]); }, 0),
+      unknownCost: item.type === "training"
+    };
+  }
+
+  function prunePlannerActions(actions) {
+    return actions.filter(function (candidate, index) {
+      return !actions.some(function (other, otherIndex) {
+        if (index === otherIndex) return false;
+        const noWorseTargets = other.targetDeltas.every(function (value, targetIndex) { return value >= candidate.targetDeltas[targetIndex]; });
+        const noWorsePressure = other.pressureDelta <= candidate.pressureDelta;
+        const noWorseIncome = other.income >= candidate.income;
+        const noWorseLoss = other.nonTargetLoss <= candidate.nonTargetLoss;
+        const strictlyBetter = other.pressureDelta < candidate.pressureDelta || other.income > candidate.income || other.nonTargetLoss < candidate.nonTargetLoss || other.targetDeltas.some(function (value, targetIndex) { return value > candidate.targetDeltas[targetIndex]; });
+        return noWorseTargets && noWorsePressure && noWorseIncome && noWorseLoss && strictlyBetter;
+      });
+    });
+  }
+
+  function plannerStartDate(snapshot) {
+    return new Date(Date.UTC(snapshot.year, snapshot.month - 1, snapshot.day));
+  }
+
+  function isoDate(date) {
+    return date.toISOString().slice(0, 10);
+  }
+
+  function addDays(date, days) {
+    return new Date(date.getTime() + days * 86400000);
+  }
+
+  function remainingPlannerDays(snapshot) {
+    const start = plannerStartDate(snapshot);
+    const deadline = new Date(data.planner.deadline + "T00:00:00Z");
+    return Math.max(0, Math.floor((deadline - start) / 86400000) + 1);
+  }
+
+  function minHeap() {
+    const items = [];
+    function compare(a, b) { return a.f - b.f || a.h - b.h || a.pressure - b.pressure || a.g - b.g; }
+    return {
+      get length() { return items.length; },
+      push: function (item) {
+        items.push(item);
+        let index = items.length - 1;
+        while (index > 0) {
+          const parent = Math.floor((index - 1) / 2);
+          if (compare(items[parent], item) <= 0) break;
+          items[index] = items[parent];
+          index = parent;
+        }
+        items[index] = item;
+      },
+      pop: function () {
+        if (!items.length) return null;
+        const root = items[0];
+        const last = items.pop();
+        if (items.length) {
+          let index = 0;
+          while (true) {
+            const left = index * 2 + 1;
+            const right = left + 1;
+            if (left >= items.length) break;
+            let child = right < items.length && compare(items[right], items[left]) < 0 ? right : left;
+            if (compare(last, items[child]) <= 0) break;
+            items[index] = items[child];
+            index = child;
+          }
+          items[index] = last;
+        }
+        return root;
+      }
+    };
+  }
+
+  function searchFastestPlan(snapshot, actions, targetKeys) {
+    const targetValues = targetKeys.map(function (key) { return snapshot.attributes[key].target; });
+    const startValues = targetKeys.map(function (key, index) { return Math.min(snapshot.attributes[key].current, targetValues[index] + 20); });
+    const maxGains = targetKeys.map(function (key, targetIndex) {
+      return Math.max.apply(null, actions.map(function (action) { return Math.max(0, action.targetDeltas[targetIndex]); }));
+    });
+    const missing = targetKeys.filter(function (key, index) { return maxGains[index] <= 0; });
+    if (missing.length) return { ok: false, reason: "coverage", missing: missing };
+
+    const actionLimit = remainingPlannerDays(snapshot);
+    if (!actionLimit) return { ok: false, reason: "deadline" };
+    function isGoal(values) { return values.every(function (value, index) { return value >= targetValues[index]; }); }
+    function heuristic(values) {
+      return values.reduce(function (lowerBound, value, index) {
+        return Math.max(lowerBound, Math.ceil(Math.max(0, targetValues[index] - value) / maxGains[index]));
+      }, 0);
+    }
+    function stateKey(values, pressure) { return values.join(",") + "|" + pressure; }
+
+    const queue = minHeap();
+    const startPressure = Math.max(0, snapshot.pressure);
+    const startKey = stateKey(startValues, startPressure);
+    const startHeuristic = heuristic(startValues);
+    queue.push({ key: startKey, values: startValues, pressure: startPressure, g: 0, h: startHeuristic, f: startHeuristic });
+    const best = new Map([[startKey, 0]]);
+    const parents = new Map();
+    let expanded = 0;
+    let hitActionLimit = false;
+    const expansionLimit = targetKeys.length <= 4 ? 120000 : 35000;
+
+    while (queue.length && expanded < expansionLimit) {
+      const current = queue.pop();
+      if (best.get(current.key) !== current.g) continue;
+      if (isGoal(current.values)) {
+        const path = [];
+        let key = current.key;
+        while (parents.has(key)) {
+          const parent = parents.get(key);
+          path.push(parent.actionIndex);
+          key = parent.previousKey;
+        }
+        path.reverse();
+        return { ok: true, path: path, method: "shortest_path", expanded: expanded };
+      }
+      if (current.g >= actionLimit) {
+        hitActionLimit = true;
+        continue;
+      }
+      expanded += 1;
+      actions.forEach(function (action, actionIndex) {
+        const nextPressure = Math.max(0, current.pressure + action.pressureDelta);
+        if (current.pressure > snapshot.pressureLimit) {
+          if (nextPressure >= current.pressure) return;
+        } else if (nextPressure > snapshot.pressureLimit) {
+          return;
+        }
+        const nextValues = current.values.map(function (value, index) {
+          return Math.max(0, Math.min(targetValues[index] + 20, value + action.targetDeltas[index]));
+        });
+        const changesTarget = nextValues.some(function (value, index) { return value !== current.values[index]; });
+        if (!changesTarget && nextPressure >= current.pressure) return;
+        const nextG = current.g + 1;
+        const nextKey = stateKey(nextValues, nextPressure);
+        if (best.has(nextKey) && best.get(nextKey) <= nextG) return;
+        const nextH = heuristic(nextValues);
+        best.set(nextKey, nextG);
+        parents.set(nextKey, { previousKey: current.key, actionIndex: actionIndex });
+        queue.push({ key: nextKey, values: nextValues, pressure: nextPressure, g: nextG, h: nextH, f: nextG + nextH });
+      });
+    }
+    return { ok: false, reason: expanded >= expansionLimit ? "search_limit" : hitActionLimit ? "deadline" : "constraints" };
+  }
+
+  function greedyFastestPlan(snapshot, actions, targetKeys) {
+    const targetValues = targetKeys.map(function (key) { return snapshot.attributes[key].target; });
+    const values = targetKeys.map(function (key) { return snapshot.attributes[key].current; });
+    let pressure = snapshot.pressure;
+    const path = [];
+    const actionLimit = remainingPlannerDays(snapshot);
+    function deficit(list) {
+      return list.reduce(function (sum, value, index) { return sum + Math.max(0, targetValues[index] - value); }, 0);
+    }
+    while (deficit(values) > 0 && path.length < actionLimit) {
+      const before = deficit(values);
+      const ranked = actions.map(function (action, actionIndex) {
+        const nextPressure = Math.max(0, pressure + action.pressureDelta);
+        const pressureAllowed = pressure > snapshot.pressureLimit ? nextPressure < pressure : nextPressure <= snapshot.pressureLimit;
+        const nextValues = values.map(function (value, index) { return Math.max(0, value + action.targetDeltas[index]); });
+        return { actionIndex: actionIndex, nextPressure: nextPressure, nextValues: nextValues, progress: before - deficit(nextValues), pressureAllowed: pressureAllowed };
+      }).filter(function (candidate) { return candidate.pressureAllowed; }).sort(function (a, b) {
+        return b.progress - a.progress || actions[a.actionIndex].pressureDelta - actions[b.actionIndex].pressureDelta || actions[b.actionIndex].income - actions[a.actionIndex].income;
+      });
+      let choice = ranked.find(function (candidate) { return candidate.progress > 0; });
+      if (!choice) choice = ranked.find(function (candidate) { return actions[candidate.actionIndex].pressureDelta < 0 && candidate.nextPressure < pressure; });
+      if (!choice) return { ok: false, reason: "constraints" };
+      values.splice(0, values.length).push.apply(values, choice.nextValues);
+      pressure = choice.nextPressure;
+      path.push(choice.actionIndex);
+    }
+    return deficit(values) === 0 ? { ok: true, path: path, method: "greedy" } : { ok: false, reason: "deadline" };
+  }
+
+  function planReason(targetChanges) {
+    const gains = targetChanges.filter(function (change) { return change.value > 0; }).sort(function (a, b) { return b.value - a.value; });
+    return gains.length ? "本周优先推进 " + gains.slice(0, 3).map(function (change) { return attributeName(change.key); }).join("、") + "，并保持压力不超过安全线。" : "本周用于降低压力，为后续高收益活动腾出空间。";
+  }
+
+  function buildPlannerSuccess(snapshot, actions, search, targetKeys) {
+    const initialValues = {};
+    plannerAttributes().forEach(function (key) { initialValues[key] = snapshot.attributes[key].current; });
+    const values = Object.assign({}, initialValues);
+    let pressure = snapshot.pressure;
+    let maxPressure = pressure;
+    let funds = snapshot.funds;
+    const performed = search.path.map(function (actionIndex) {
+      const action = actions[actionIndex];
+      Object.keys(action.effect).forEach(function (key) {
+        if (key !== "pressure") values[key] = Math.max(0, Number(values[key] || 0) + action.effect[key]);
+      });
+      pressure = Math.max(0, pressure + action.pressureDelta);
+      maxPressure = Math.max(maxPressure, pressure);
+      funds += action.income;
+      return action;
+    });
+    const startDate = plannerStartDate(snapshot);
+    const weeks = [];
+    for (let offset = 0; offset < performed.length; offset += data.planner.maxActionsPerWeek) {
+      const weekActions = performed.slice(offset, offset + data.planner.maxActionsPerWeek);
+      const beforeValues = Object.assign({}, initialValues);
+      let weekStartPressure = snapshot.pressure;
+      for (let prior = 0; prior < offset; prior += 1) {
+        const priorAction = performed[prior];
+        Object.keys(priorAction.effect).forEach(function (key) { if (key !== "pressure") beforeValues[key] = Math.max(0, Number(beforeValues[key] || 0) + priorAction.effect[key]); });
+        weekStartPressure = Math.max(0, weekStartPressure + priorAction.pressureDelta);
+      }
+      const afterValues = Object.assign({}, beforeValues);
+      let weekEndPressure = weekStartPressure;
+      let knownIncome = 0;
+      const counts = new Map();
+      weekActions.forEach(function (action) {
+        Object.keys(action.effect).forEach(function (key) { if (key !== "pressure") afterValues[key] = Math.max(0, Number(afterValues[key] || 0) + action.effect[key]); });
+        weekEndPressure = Math.max(0, weekEndPressure + action.pressureDelta);
+        knownIncome += action.income;
+        const countKey = action.id + "|" + (action.tier || "");
+        if (!counts.has(countKey)) counts.set(countKey, { name: action.name, tier: action.tier, count: 0 });
+        counts.get(countKey).count += 1;
+      });
+      const targetChanges = targetKeys.map(function (key) { return { key: key, value: afterValues[key] - beforeValues[key] }; });
+      const weekStart = addDays(startDate, offset);
+      const weekEnd = addDays(startDate, offset + weekActions.length - 1);
+      weeks.push({
+        number: weeks.length + 1,
+        dateRange: (weekStart.getUTCMonth() + 1) + "/" + weekStart.getUTCDate() + " - " + (weekEnd.getUTCMonth() + 1) + "/" + weekEnd.getUTCDate(),
+        actionCount: weekActions.length,
+        activities: Array.from(counts.values()),
+        targetChanges: targetChanges,
+        startPressure: weekStartPressure,
+        endPressure: weekEndPressure,
+        knownIncome: knownIncome,
+        reason: planReason(targetChanges)
+      });
+    }
+    const totals = new Map();
+    performed.forEach(function (action) {
+      const key = action.id + "|" + (action.tier || "");
+      if (!totals.has(key)) totals.set(key, { name: action.name, tier: action.tier, icon: action.icon, count: 0 });
+      totals.get(key).count += 1;
+    });
+    const losses = plannerAttributes().filter(function (key) { return !targetKeys.includes(key) && values[key] < initialValues[key]; }).map(function (key) { return attributeName(key) + " " + signedNumber(values[key] - initialValues[key]); });
+    const usedTraining = performed.some(function (action) { return action.unknownCost; });
+    const warnings = ["这是基于用户精确表的估算方案；每次活动按 1 天、每周最多 7 次计算。"];
+    if (usedTraining) warnings.push("方案使用训练项目，期末资金尚未扣除训练费用。请在游戏中确认资金足够。");
+    warnings.push("成长上限、随机波动、失败分支和活动临时不可用状态尚未纳入。");
+    if (losses.length) warnings.push("非目标属性预计下降：" + losses.join("、") + "。");
+    if (search.method === "greedy") warnings.push("目标较多时使用启发式搜索，结果可达但不保证活动次数为全局最少。");
+    return {
+      status: "success",
+      strategy: "fastest",
+      totalActions: performed.length,
+      completionDate: isoDate(addDays(startDate, performed.length - 1)),
+      maxPressure: maxPressure,
+      pressureLimit: snapshot.pressureLimit,
+      finalPressure: pressure,
+      finalFunds: funds,
+      usedTraining: usedTraining,
+      targets: targetKeys.map(function (key) {
+        const start = initialValues[key];
+        const target = snapshot.attributes[key].target;
+        return { key: key, start: start, target: target, end: values[key], progress: Math.min(100, Math.round((values[key] - start) / Math.max(1, target - start) * 100)) };
+      }),
+      weeks: weeks,
+      activityTotals: Array.from(totals.values()).sort(function (a, b) { return b.count - a.count || a.name.localeCompare(b.name, "zh-CN"); }),
+      warnings: warnings
+    };
   }
 
   function generatePlannerResult(snapshot) {
@@ -583,22 +974,62 @@
         ]
       };
     }
-    if (!data.planner.eligibleActivityCount) {
+    if (snapshot.strategy !== "fastest") {
       return {
-        title: "缺少达到准入门槛的活动",
+        title: "该策略尚未开放",
         strategy: snapshot.strategy,
         diagnostics: [
-          { icon: "flask-conical", title: "22 项活动仍在校准", text: "精确属性值已录入，但费用、耗时和上限尚不足以生成可靠次数。" },
-          { icon: "shield-alert", title: "已阻止伪精确方案", text: "单一玩家实测和方向性数据不会进入自动计算。" },
-          { icon: "list-checks", title: "当前目标已保存", text: "目标属性：" + targets.map(attributeName).join("、") + "。数据升级后可重新计算。" }
+          { icon: "wallet", title: "训练费用仍待校准", text: "最低花费和均衡策略需要完整费用数据。" },
+          { icon: "zap", title: "最快达标可以使用", text: "切换到最快达标后可立即生成估算方案。" }
         ]
       };
     }
-    return {
-      title: "所选活动无法覆盖全部目标",
-      strategy: snapshot.strategy,
-      diagnostics: [{ icon: "route-off", title: "活动覆盖不足", text: "增加已解锁课程或降低目标后重新计算。" }]
-    };
+    if (!snapshot.activities.length) {
+      return {
+        title: "尚未选择可用活动",
+        strategy: snapshot.strategy,
+        diagnostics: [
+          { icon: "list-checks", title: "活动为空", text: "至少勾选一项当前已经解锁的打工或训练。" },
+          { icon: "wand-sparkles", title: "可使用按属性推荐", text: "系统会按当前属性勾选满足门槛的打工，并保留全部训练课程。" }
+        ]
+      };
+    }
+    const selected = new Set(snapshot.activities);
+    let actions = allPlannerActivities().filter(function (item) { return selected.has(item.id) && item.estimateEligible && item.exact; }).map(function (item) {
+      return plannerAction(item, snapshot, targets);
+    }).filter(function (action) {
+      return action.pressureDelta < 0 || action.targetDeltas.some(function (value) { return value > 0; });
+    });
+    actions = prunePlannerActions(actions);
+    const missingTargets = targets.filter(function (key, targetIndex) {
+      return !actions.some(function (action) { return action.targetDeltas[targetIndex] > 0; });
+    });
+    if (missingTargets.length) {
+      return {
+        title: "所选活动无法覆盖全部目标",
+        strategy: snapshot.strategy,
+        diagnostics: [
+          { icon: "route-off", title: "缺少增益活动", text: "当前没有活动可以提高：" + missingTargets.map(attributeName).join("、") + "。" },
+          { icon: "list-plus", title: "调整活动选择", text: "勾选相关训练或已解锁打工后重新生成。" }
+        ]
+      };
+    }
+    let search = searchFastestPlan(snapshot, actions, targets);
+    if (!search.ok && search.reason === "search_limit") search = greedyFastestPlan(snapshot, actions, targets);
+    if (!search.ok) {
+      const reasonText = search.reason === "deadline"
+        ? "按当前日期，剩余游戏时间不足以完成目标。"
+        : "压力安全线阻止了必要活动，且所选活动中没有足够的减压组合。";
+      return {
+        title: "当前约束下无法完成目标",
+        strategy: snapshot.strategy,
+        diagnostics: [
+          { icon: "shield-alert", title: search.reason === "deadline" ? "时间不足" : "压力约束冲突", text: reasonText },
+          { icon: "sliders-horizontal", title: "可调整输入", text: "提高压力上限、增加可用活动或降低目标值后重新生成。" }
+        ]
+      };
+    }
+    return buildPlannerSuccess(snapshot, actions, search, targets);
   }
 
   function bindEvents() {
@@ -624,6 +1055,7 @@
 
       const row = event.target.closest("tr[data-item-id]");
       if (row) openDrawer(row.dataset.kind, row.dataset.itemId);
+
     });
 
     document.addEventListener("keydown", function (event) {
@@ -660,12 +1092,18 @@
     document.querySelectorAll(".drawer-tabs button").forEach(function (button) {
       button.addEventListener("click", function () { setDrawerTab(button.dataset.tab); });
     });
-
     refs.plannerForm.addEventListener("input", function (event) {
       if (event.target.name === "pressureLimit") document.getElementById("pressure-limit-value").textContent = event.target.value;
       savePlanner(plannerSnapshot(), null);
     });
-    refs.plannerForm.addEventListener("change", function () { savePlanner(plannerSnapshot(), null); });
+    refs.plannerForm.addEventListener("change", function (event) {
+      if (event.target.name === "activityPreset" && event.target.value) {
+        setPlannerActivitySelection(event.target.value);
+        event.target.value = "";
+      }
+      updateActivitySelectionSummary();
+      savePlanner(plannerSnapshot(), null);
+    });
     refs.plannerForm.addEventListener("submit", function (event) {
       event.preventDefault();
       const snapshot = plannerSnapshot();
