@@ -157,6 +157,34 @@
     document.getElementById("overview-plan-state").textContent = data.planner.estimateActivityCount;
   }
 
+  function renderJobProgression() {
+    const guide = data.companyProgression;
+    const target = document.getElementById("job-progression-guide");
+    if (!guide || !target) return;
+    const methodList = function (items) {
+      return '<ul>' + items.map(function (item) { return '<li>' + escapeHtml(item) + '</li>'; }).join("") + '</ul>';
+    };
+    const sourceLinks = guide.sourceRefs.map(function (sourceId) {
+      const source = data.sources[sourceId];
+      if (!source || !source.url) return "";
+      return '<a href="' + escapeHtml(source.url) + '" target="_blank" rel="noreferrer">' + escapeHtml(source.type) + '<i data-lucide="external-link"></i></a>';
+    }).join("");
+    target.innerHTML = '<section class="job-progression" aria-labelledby="job-progression-title">' +
+      '<header class="job-progression-heading"><div><p>公司属性与随机事件</p><h3 id="job-progression-title">' + escapeHtml(guide.title) + '</h3></div><span><i data-lucide="shield-check"></i>分级核验</span></header>' +
+      '<p class="job-progression-summary">' + escapeHtml(guide.summary) + '</p>' +
+      '<div class="job-progression-grid">' +
+        '<article><div class="progression-label"><i data-lucide="building-2"></i><span>公司形象</span></div><h4>处理事务是稳定入口</h4>' + methodList(guide.imageMethods) + '</article>' +
+        '<article><div class="progression-label"><i data-lucide="handshake"></i><span>公共关系</span></div><h4>关说单次增加 20</h4>' + methodList(guide.publicRelationsMethods) + '</article>' +
+        '<article><div class="progression-label"><i data-lucide="map-pin"></i><span>眼镜男刷法</span></div><h4>随机出现，无固定星期</h4><p>' + escapeHtml(guide.npcGuide.confirmed) + '</p><div class="location-tags">' + guide.npcGuide.neutralLocations.map(function (location) { return '<span>' + escapeHtml(location) + '</span>'; }).join("") + '</div><small>' + escapeHtml(guide.npcGuide.communityTip) + '</small></article>' +
+      '</div>' +
+      '<div class="checkpoint-block"><div class="checkpoint-title"><span>玩家流程检查点</span><small>公司形象 / 公共关系</small></div><div class="checkpoint-grid">' + guide.checkpoints.map(function (checkpoint) {
+        return '<div><b>' + escapeHtml(checkpoint.image) + ' / ' + escapeHtml(checkpoint.publicRelations) + '</b><span>' + escapeHtml(checkpoint.result) + '</span></div>';
+      }).join("") + '</div></div>' +
+      '<footer class="job-progression-note"><i data-lucide="flask-conical"></i><p><b>证据边界</b><span>' + escapeHtml(guide.caveat) + '</span></p><div>' + sourceLinks + '</div></footer>' +
+    '</section>';
+    iconRefresh();
+  }
+
   function filterMenu(label, name, options, selected) {
     return '<details class="filter-menu" data-filter-menu>' +
       '<summary><span>' + escapeHtml(label) + '</span><small>' + (selected.length ? selected.length + " 项" : "全部") + '</small><i data-lucide="chevron-down"></i></summary>' +
@@ -1124,6 +1152,7 @@
     document.getElementById("nav-training-count").textContent = data.trainings.length;
     renderOverview();
     renderLibrary("awards");
+    renderJobProgression();
     renderLibrary("jobs");
     renderLibrary("trainings");
     renderPlannerForm();

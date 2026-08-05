@@ -672,6 +672,262 @@ svg {
   border-left: 3px solid var(--line-strong);
 }
 
+.job-progression {
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.job-progression-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px 10px;
+}
+
+.job-progression-heading p,
+.job-progression-heading h3 {
+  margin: 0;
+}
+
+.job-progression-heading p {
+  color: var(--accent-dark);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.job-progression-heading h3 {
+  margin-top: 2px;
+  font-size: 19px;
+}
+
+.job-progression-heading > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent-dark);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.job-progression-heading svg,
+.progression-label svg,
+.job-progression-note > svg,
+.job-progression-note a svg {
+  width: 16px;
+  height: 16px;
+}
+
+.job-progression-summary {
+  max-width: 920px;
+  margin: 0;
+  padding: 0 20px 17px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.job-progression-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.job-progression-grid article {
+  min-width: 0;
+  padding: 17px 20px 18px;
+  border-right: 1px solid var(--line);
+}
+
+.job-progression-grid article:last-child {
+  border-right: 0;
+}
+
+.progression-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--accent-dark);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.job-progression-grid h4 {
+  margin: 7px 0 10px;
+  font-size: 14px;
+}
+
+.job-progression-grid p,
+.job-progression-grid small {
+  display: block;
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.job-progression-grid ul {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.job-progression-grid li {
+  position: relative;
+  padding-left: 14px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.job-progression-grid li::before {
+  position: absolute;
+  top: 6px;
+  left: 0;
+  width: 6px;
+  height: 6px;
+  content: "";
+  background: var(--accent);
+}
+
+.location-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 10px 0 8px;
+}
+
+.location-tags span {
+  padding: 4px 6px;
+  color: var(--text);
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--surface-muted);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.checkpoint-block {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.checkpoint-title {
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+  padding: 14px 20px;
+  background: var(--surface-muted);
+  border-right: 1px solid var(--line);
+}
+
+.checkpoint-title span,
+.checkpoint-title small {
+  display: block;
+}
+
+.checkpoint-title span {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.checkpoint-title small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.checkpoint-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.checkpoint-grid > div {
+  min-width: 0;
+  padding: 13px 12px;
+  border-right: 1px solid var(--line);
+}
+
+.checkpoint-grid > div:last-child {
+  border-right: 0;
+}
+
+.checkpoint-grid b,
+.checkpoint-grid span {
+  display: block;
+}
+
+.checkpoint-grid b {
+  color: var(--accent-dark);
+  font-size: 13px;
+}
+
+.checkpoint-grid span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.job-progression-note {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 20px;
+  background: #f3f6f4;
+  border-top: 1px solid var(--line);
+}
+
+.job-progression-note > svg {
+  color: var(--gold);
+}
+
+.job-progression-note p,
+.job-progression-note b,
+.job-progression-note span {
+  display: block;
+  margin: 0;
+}
+
+.job-progression-note b {
+  font-size: 11px;
+}
+
+.job-progression-note span {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.job-progression-note > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.job-progression-note a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--accent-dark);
+  font-size: 10px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.job-progression-note a:hover {
+  text-decoration: underline;
+}
+
 .library-toolbar {
   position: sticky;
   top: 78px;
@@ -2105,6 +2361,49 @@ svg {
     top: 124px;
   }
 
+  .job-progression-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .job-progression-grid article {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .job-progression-grid article:last-child {
+    border-bottom: 0;
+  }
+
+  .checkpoint-block {
+    grid-template-columns: 1fr;
+  }
+
+  .checkpoint-title {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .checkpoint-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .checkpoint-grid > div:nth-child(2) {
+    border-right: 0;
+  }
+
+  .checkpoint-grid > div:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--line);
+  }
+
+  .job-progression-note {
+    grid-template-columns: 28px minmax(0, 1fr);
+  }
+
+  .job-progression-note > div {
+    grid-column: 2;
+    justify-content: flex-start;
+  }
+
   .planner-workspace {
     grid-template-columns: 1fr;
   }
@@ -2152,6 +2451,34 @@ svg {
 
   .page {
     padding-top: 14px;
+  }
+
+  .job-progression-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  .job-progression-summary,
+  .job-progression-grid article,
+  .checkpoint-title,
+  .job-progression-note {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  .checkpoint-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .checkpoint-grid > div {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .checkpoint-grid > div:last-child {
+    border-bottom: 0;
   }
 
   .overview-band {

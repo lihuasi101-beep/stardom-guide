@@ -39,6 +39,18 @@
       url: "https://forum.gamer.com.tw/C.php?bsn=866&snA=22790",
       note: "部分训练和登台作秀数值仍需在目标构建重复验证。"
     },
+    "SRC-BAHA-SYSTEM-2015": {
+      title: "巴哈姆特《明星志愿1－攻略整理》",
+      type: "社区整理",
+      url: "https://forum.gamer.com.tw/C.php?bsn=866&snA=22448",
+      note: "记录处理事务、普通外出地点与随机公关 NPC；作者说明内容整理自其他攻略。"
+    },
+    "SRC-TIEBA-WORK-2022": {
+      title: "百度贴吧《明星志愿1的通告和综艺》",
+      type: "玩家流程实测",
+      url: "https://tieba.baidu.com/p/8176092199",
+      note: "记录公司属性检查点、公关增长数值和打工项目开放过程；不等同于程序公式。"
+    },
     "SRC-USER-JOB-TABLE-2026-08-04": {
       title: "《打工项目》精确数值表",
       type: "用户提供截图",
@@ -218,6 +230,32 @@
     };
   });
 
+  const companyProgression = {
+    title: "公司成长与打工解锁",
+    summary: "打工项目是否出现不只看公关；游戏提示同时提到公司形象与公共关系。项目出现后，艺人仍须满足对应属性门槛。",
+    imageMethods: [
+      "秘书 → 公司交易处理 → 处理事务：花费 500 元并经过一天，可能提升公司形象、知名度或公共关系。",
+      "玩家实测流程中，开放新的打工项目时会结算公司形象 +10。"
+    ],
+    publicRelationsMethods: [
+      "普通地点遇到白衬衫眼镜男：花费 10,000 元关说，公共关系 +20。",
+      "进入唱片、电影、电视、广告公司：每处公共关系 +5，四处合计 +20。"
+    ],
+    npcGuide: {
+      confirmed: "眼镜男会在普通外出地点随机出现，目前没有确认固定星期。外出前存档，未遇到时可读档并更换地点。",
+      neutralLocations: ["捷运车站", "西餐厅", "旅店街", "茶艺馆"],
+      communityTip: "社区常称捷运车站较容易遇到，但尚无程序权重或批量对照实测；只作为优先尝试地点。"
+    },
+    checkpoints: [
+      { image: "200", publicRelations: "10", result: "目标构建开局基线" },
+      { image: "235", publicRelations: "75", result: "玩家流程已出现民歌演唱" },
+      { image: "291", publicRelations: "150", result: "玩家流程解锁舞厅演唱" },
+      { image: "约 300", publicRelations: "约 190", result: "玩家流程打工项目齐全" }
+    ],
+    caveat: "以上是可复现的流程检查点，不是每项工作的精确程序阈值。官方说明书未公开地点概率和完整解锁公式。",
+    sourceRefs: ["SRC-OFFICIAL-MANUAL", "SRC-TARGET-BUILD-SAVE", "SRC-BAHA-SYSTEM-2015", "SRC-TIEBA-WORK-2022"]
+  };
+
   const trainingSeeds = [
     { id: "etiquette", name: "礼仪训练", icon: "handshake", exact: { appearance: 2, morality: 1, pressure: 2 } },
     { id: "posture", name: "美姿训练", icon: "person-standing", exact: { appearance: 2, temperament: 2, pressure: 2 } },
@@ -259,13 +297,14 @@
   });
 
   window.STARDOM_DATA = {
-    version: "2026.08-M4",
-    updatedAt: "2026-08-04",
+    version: "2026.08-M5",
+    updatedAt: "2026-08-05",
     gameVersion: "1995 DOS 原版 · 简体目标构建",
     attributes: attributes,
     sources: sources,
     awards: awards,
     jobs: jobs,
+    companyProgression: companyProgression,
     trainings: trainings,
     planner: {
       status: "estimate_ready",
