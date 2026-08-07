@@ -4,6 +4,7 @@
   const data = window.STARDOM_DATA;
   const routeMeta = {
     overview: { title: "资料总览", eyebrow: "DOS 原版资料" },
+    attributes: { title: "属性查询", eyebrow: "打工与训练合并比较" },
     awards: { title: "奖项资料库", eyebrow: "赛事与判定" },
     jobs: { title: "打工资料库", eyebrow: "工作与属性变化" },
     trainings: { title: "训练资料库", eyebrow: "课程与成长方向" },
@@ -31,6 +32,7 @@
       jobs: { key: null, direction: null },
       trainings: { key: null, direction: null }
     },
+    explorer: { attribute: "acting", direction: "gain", type: "all" },
     drawer: null,
     activeTab: "profile"
   };
@@ -51,6 +53,7 @@
     plannerOutput: document.getElementById("planner-output"),
     saveState: document.getElementById("save-state")
   };
+  const filterSearchTimers = {};
 
   function iconRefresh() {
     if (window.lucide && typeof window.lucide.createIcons === "function") {
@@ -186,7 +189,7 @@
   }
 
   function filterMenu(label, name, options, selected) {
-    return '<details class="filter-menu" data-filter-menu>' +
+    return '<details class="filter-menu" data-filter-menu data-filter-name="' + escapeHtml(name) + '">' +
       '<summary><span>' + escapeHtml(label) + '</span><small>' + (selected.length ? selected.length + " 项" : "全部") + '</small><i data-lucide="chevron-down"></i></summary>' +
       '<div class="filter-menu-panel">' + options.map(function (option) {
         const value = typeof option === "string" ? option : option.value;
@@ -195,28 +198,38 @@
       }).join("") + "</div></details>";
   }
 
+  function attributeQuickFilter(label, name, selected) {
+    return '<div class="attribute-quick-filter" data-attribute-filter="' + escapeHtml(name) + '">' +
+      '<div class="attribute-quick-heading"><strong>' + escapeHtml(label) + '<small data-attribute-count>' + (selected.length ? selected.length + " 项" : "全部") + '</small></strong>' +
+      '<button class="attribute-clear" type="button" data-clear-attribute-filter="' + escapeHtml(name) + '" title="清空属性筛选"><i data-lucide="x"></i><span>清空</span></button></div>' +
+      '<div class="attribute-quick-options">' + Object.keys(data.attributes).map(function (key) {
+        return '<label><input type="checkbox" name="' + escapeHtml(name) + '" value="' + escapeHtml(key) + '" ' + (selected.includes(key) ? "checked" : "") + '><span>' + escapeHtml(attributeName(key)) + '</span></label>';
+      }).join("") + '</div></div>';
+  }
+
   function toolbarHtml(kind) {
     const current = state.filters[kind];
     const searchPlaceholder = kind === "awards" ? "搜索奖项、规则或属性" : kind === "jobs" ? "搜索打工、条件或属性" : "搜索课程或属性";
     let controls = "";
+    let attributes = "";
     if (kind === "awards") {
       controls = filterMenu("类别", "categories", ["广告/模特", "音乐", "电影", "票选"], current.categories) +
-        filterMenu("月份", "months", [3, 5, 10, 11, 12].map(function (month) { return { value: month, label: month + " 月" }; }), current.months) +
-        filterMenu("关联属性", "attributes", Object.keys(data.attributes).map(function (key) { return { value: key, label: attributeName(key) }; }), current.attributes);
+        filterMenu("月份", "months", [3, 5, 10, 11, 12].map(function (month) { return { value: month, label: month + " 月" }; }), current.months);
+      attributes = attributeQuickFilter("关联属性", "attributes", current.attributes);
     } else if (kind === "jobs") {
-      controls = filterMenu("关联属性", "attributes", Object.keys(data.attributes).map(function (key) { return { value: key, label: attributeName(key) }; }), current.attributes) +
-        '<select class="filter-select" name="direction" aria-label="属性方向"><option value="any">增益或减益</option><option value="gain" ' + (current.direction === "gain" ? "selected" : "") + '>仅增益</option><option value="loss" ' + (current.direction === "loss" ? "selected" : "") + '>仅减益</option></select>' +
+      controls = '<select class="filter-select" name="direction" aria-label="属性方向"><option value="any">增益或减益</option><option value="gain" ' + (current.direction === "gain" ? "selected" : "") + '>仅增益</option><option value="loss" ' + (current.direction === "loss" ? "selected" : "") + '>仅减益</option></select>' +
         filterMenu("解锁阶段", "stages", ["初始可用", "属性门槛"], current.stages);
+      attributes = attributeQuickFilter("属性变化", "attributes", current.attributes);
     } else {
-      controls = filterMenu("增益属性", "gains", Object.keys(data.attributes).map(function (key) { return { value: key, label: attributeName(key) }; }), current.gains) +
-        filterMenu("压力基础值", "pressures", [1, 2, 3].map(function (value) { return { value: value, label: "+" + value + "（初级）" }; }), current.pressures);
+      controls = filterMenu("压力基础值", "pressures", [1, 2, 3].map(function (value) { return { value: value, label: "+" + value + "（初级）" }; }), current.pressures);
+      attributes = attributeQuickFilter("增益属性", "gains", current.gains);
     }
     return '<div class="library-toolbar" data-toolbar-kind="' + kind + '">' +
       '<div class="filter-row ' + kind + '">' +
         '<label class="search-field"><i data-lucide="search"></i><input type="search" name="query" value="' + escapeHtml(current.query) + '" placeholder="' + searchPlaceholder + '" aria-label="' + searchPlaceholder + '"></label>' +
         controls +
-        '<div class="filter-actions"><button class="filter-button" type="button" data-reset-filter><i data-lucide="rotate-ccw"></i>重置</button><button class="filter-button primary" type="button" data-apply-filter><i data-lucide="list-filter"></i>应用</button></div>' +
-      '</div><div class="filter-summary" data-filter-summary></div></div>';
+        '<div class="filter-actions"><button class="filter-button" type="button" data-reset-filter><i data-lucide="rotate-ccw"></i>重置</button></div>' +
+      '</div>' + attributes + '<div class="filter-summary" data-filter-summary></div></div>';
   }
 
   function collectChecked(container, name) {
@@ -359,6 +372,110 @@
     const toolbar = document.getElementById(kind === "awards" ? "award-toolbar" : kind === "jobs" ? "job-toolbar" : "training-toolbar");
     toolbar.innerHTML = toolbarHtml(kind);
     renderTable(kind);
+    iconRefresh();
+  }
+
+  function updateToolbarControlMeta(toolbar) {
+    toolbar.querySelectorAll("[data-filter-name]").forEach(function (details) {
+      const name = details.dataset.filterName;
+      const count = details.querySelectorAll('input[name="' + name + '"]:checked').length;
+      const summary = details.querySelector("summary small");
+      if (summary) summary.textContent = count ? count + " 项" : "全部";
+    });
+    toolbar.querySelectorAll("[data-attribute-filter]").forEach(function (filter) {
+      const name = filter.dataset.attributeFilter;
+      const count = filter.querySelectorAll('input[name="' + name + '"]:checked').length;
+      const summary = filter.querySelector("[data-attribute-count]");
+      if (summary) summary.textContent = count ? count + " 项" : "全部";
+    });
+  }
+
+  function explorerSegment(name, options, selected) {
+    return '<div class="explorer-segment" role="radiogroup">' + options.map(function (option) {
+      return '<label><input type="radio" name="' + escapeHtml(name) + '" value="' + escapeHtml(option.value) + '" data-explorer-control="' + escapeHtml(option.control) + '" ' + (selected === option.value ? "checked" : "") + '><span>' + escapeHtml(option.label) + '</span></label>';
+    }).join("") + '</div>';
+  }
+
+  function explorerAttributeValue(item, key) {
+    const value = item.exact && item.exact[key];
+    if (value == null) return "—";
+    if (item.tierMultipliers) {
+      return item.tierMultipliers.map(function (multiplier) {
+        const tierValue = value * multiplier;
+        return tierValue > 0 ? "+" + tierValue : String(tierValue).replace("-", "−");
+      }).join("/");
+    }
+    return value > 0 ? "+" + value : String(value).replace("-", "−");
+  }
+
+  function getExplorerRows() {
+    const selected = state.explorer;
+    return data.jobs.concat(data.trainings).filter(function (item) {
+      if (selected.type !== "all" && item.type !== selected.type) return false;
+      const value = item.exact && item.exact[selected.attribute];
+      if (value == null || value === 0) return false;
+      if (selected.direction === "gain") return value > 0;
+      if (selected.direction === "loss") return value < 0;
+      return true;
+    }).sort(function (a, b) {
+      const av = a.exact[state.explorer.attribute];
+      const bv = b.exact[state.explorer.attribute];
+      if ((av > 0) !== (bv > 0)) return bv - av;
+      const magnitude = Math.abs(bv) - Math.abs(av);
+      if (magnitude) return magnitude;
+      return a.name.localeCompare(b.name, "zh-CN");
+    });
+  }
+
+  function explorerSideEffects(item, selectedAttribute) {
+    const losses = item.decrease.filter(function (key) { return key !== selectedAttribute && key !== "pressure"; });
+    const pressure = item.exact && item.exact.pressure != null && selectedAttribute !== "pressure" ? ["pressure"] : [];
+    const parts = [];
+    if (losses.length) parts.push(effectTagsForKeys(item, losses, "loss", 3));
+    if (pressure.length) parts.push(effectTagsForKeys(item, pressure, item.exact.pressure > 0 ? "loss" : "gain", 1));
+    return parts.length ? parts.join("") : '<span class="tag neutral">无</span>';
+  }
+
+  function renderAttributeExplorer() {
+    const target = document.getElementById("attribute-explorer");
+    if (!target) return;
+    const selected = state.explorer;
+    const rows = getExplorerRows();
+    const jobCount = rows.filter(function (item) { return item.type === "job"; }).length;
+    const trainingCount = rows.length - jobCount;
+    const attributeOptions = Object.keys(data.attributes).map(function (key) {
+      return '<label><input type="radio" name="explorerAttribute" value="' + escapeHtml(key) + '" data-explorer-control="attribute" ' + (selected.attribute === key ? "checked" : "") + '><span>' + escapeHtml(attributeName(key)) + '</span></label>';
+    }).join("");
+    const directionControl = explorerSegment("explorerDirection", [
+      { value: "gain", label: "数值增加", control: "direction" },
+      { value: "loss", label: "数值减少", control: "direction" },
+      { value: "any", label: "全部变化", control: "direction" }
+    ], selected.direction);
+    const typeControl = explorerSegment("explorerType", [
+      { value: "all", label: "全部活动", control: "type" },
+      { value: "job", label: "只看打工", control: "type" },
+      { value: "training", label: "只看训练", control: "type" }
+    ], selected.type);
+    let results = '<div class="empty-results"><div><i data-lucide="search-x"></i><h3>没有对应活动</h3><p>当前属性与变化方向没有匹配资料。</p></div></div>';
+    if (rows.length) {
+      const body = rows.map(function (item) {
+        const selectedValue = item.exact[selected.attribute];
+        const otherGains = item.increase.filter(function (key) { return key !== selected.attribute && key !== "pressure"; });
+        const resource = item.type === "job"
+          ? '<div class="resource-cell"><b>' + money(item.income) + '</b><small>' + escapeHtml(item.unlock) + '</small></div>'
+          : '<div class="resource-cell"><b>' + money(item.cost) + '</b><small>初 / 中 / 高 / 特</small></div>';
+        return '<tr tabindex="0" data-kind="' + item.type + '" data-item-id="' + item.id + '"><td data-label="活动"><div class="name-cell"><span class="row-icon ' + item.type + '"><i data-lucide="' + item.icon + '"></i></span><span><b>' + item.name + '</b><small>' + (item.type === "job" ? "打工" : "训练") + '</small></span></div></td>' +
+          '<td data-label="目标变化"><span class="attribute-delta ' + (selectedValue > 0 ? "up" : "down") + '">' + escapeHtml(attributeName(selected.attribute)) + ' ' + escapeHtml(explorerAttributeValue(item, selected.attribute)) + '</span></td>' +
+          '<td data-label="其他增益">' + effectTagsForKeys(item, otherGains, "gain", 3, "无") + '</td><td data-label="副作用 / 压力">' + explorerSideEffects(item, selected.attribute) + '</td><td data-label="收支 / 条件">' + resource + '</td><td data-label="置信等级">' + statusPill(item.status) + '</td></tr>';
+      }).join("");
+      results = '<div class="table-shell"><div class="data-table-wrap"><table class="data-table explorer-table"><thead><tr><th>活动</th><th>目标属性变化</th><th>其他增益</th><th>副作用 / 压力</th><th>收支 / 条件</th><th>置信等级</th></tr></thead><tbody>' + body + '</tbody></table></div></div>';
+    }
+    target.innerHTML = '<section class="attribute-explorer-panel">' +
+      '<div class="attribute-explorer-heading"><div><p>目标属性</p><h3>' + escapeHtml(attributeName(selected.attribute)) + '</h3></div><span><b>' + rows.length + '</b> 项匹配</span></div>' +
+      '<div class="explorer-attribute-grid">' + attributeOptions + '</div>' +
+      '<div class="explorer-control-row"><div><small>变化方向</small>' + directionControl + '</div><div><small>活动类型</small>' + typeControl + '</div></div>' +
+      '<div class="attribute-explorer-summary"><strong>' + escapeHtml(attributeName(selected.attribute)) + '</strong><span>打工 ' + jobCount + ' 项</span><span>训练 ' + trainingCount + ' 项</span></div>' +
+      '</section>' + results;
     iconRefresh();
   }
 
@@ -1067,15 +1184,18 @@
       const jump = event.target.closest("[data-route-jump]");
       if (jump) navigate(jump.dataset.routeJump);
 
-      const apply = event.target.closest("[data-apply-filter]");
-      if (apply) {
-        const kind = apply.closest("[data-toolbar-kind]").dataset.toolbarKind;
-        state.filters[kind] = readToolbar(kind);
-        apply.closest("[data-toolbar-kind]").querySelectorAll("details").forEach(function (details) { details.open = false; });
-        renderLibrary(kind);
-      }
       const reset = event.target.closest("[data-reset-filter]");
       if (reset) resetFilters(reset.closest("[data-toolbar-kind]").dataset.toolbarKind);
+      const clearAttributes = event.target.closest("[data-clear-attribute-filter]");
+      if (clearAttributes) {
+        const toolbar = clearAttributes.closest("[data-toolbar-kind]");
+        const name = clearAttributes.dataset.clearAttributeFilter;
+        toolbar.querySelectorAll('input[name="' + name + '"]').forEach(function (input) { input.checked = false; });
+        const kind = toolbar.dataset.toolbarKind;
+        state.filters[kind] = readToolbar(kind);
+        updateToolbarControlMeta(toolbar);
+        renderTable(kind);
+      }
       const emptyReset = event.target.closest("[data-empty-reset]");
       if (emptyReset) resetFilters(emptyReset.dataset.emptyReset);
       const sort = event.target.closest("[data-sort-kind]");
@@ -1084,6 +1204,32 @@
       const row = event.target.closest("tr[data-item-id]");
       if (row) openDrawer(row.dataset.kind, row.dataset.itemId);
 
+    });
+
+    document.addEventListener("input", function (event) {
+      const toolbar = event.target.closest("[data-toolbar-kind]");
+      if (!toolbar || !event.target.matches('input[type="search"]')) return;
+      const kind = toolbar.dataset.toolbarKind;
+      window.clearTimeout(filterSearchTimers[kind]);
+      filterSearchTimers[kind] = window.setTimeout(function () {
+        state.filters[kind] = readToolbar(kind);
+        renderTable(kind);
+      }, 140);
+    });
+
+    document.addEventListener("change", function (event) {
+      const explorerControl = event.target.closest("[data-explorer-control]");
+      if (explorerControl) {
+        state.explorer[explorerControl.dataset.explorerControl] = explorerControl.value;
+        renderAttributeExplorer();
+        return;
+      }
+      const toolbar = event.target.closest("[data-toolbar-kind]");
+      if (!toolbar || event.target.matches('input[type="search"]')) return;
+      const kind = toolbar.dataset.toolbarKind;
+      state.filters[kind] = readToolbar(kind);
+      updateToolbarControlMeta(toolbar);
+      renderTable(kind);
     });
 
     document.addEventListener("keydown", function (event) {
@@ -1101,8 +1247,9 @@
         if (toolbar && event.target.matches('input[type="search"]')) {
           event.preventDefault();
           const kind = toolbar.dataset.toolbarKind;
+          window.clearTimeout(filterSearchTimers[kind]);
           state.filters[kind] = readToolbar(kind);
-          renderLibrary(kind);
+          renderTable(kind);
         }
       }
     });
@@ -1150,7 +1297,9 @@
     document.getElementById("nav-award-count").textContent = data.awards.length;
     document.getElementById("nav-job-count").textContent = data.jobs.length;
     document.getElementById("nav-training-count").textContent = data.trainings.length;
+    document.getElementById("nav-activity-count").textContent = data.jobs.length + data.trainings.length;
     renderOverview();
+    renderAttributeExplorer();
     renderLibrary("awards");
     renderJobProgression();
     renderLibrary("jobs");

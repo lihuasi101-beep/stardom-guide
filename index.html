@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="《明星志愿 1》DOS 原版奖项、打工、训练、公司成长与养成规划攻略工具。">
   <title>明星志愿 1 · 养成资料站</title>
-  <link rel="stylesheet" href="styles.css?v=2026.08-M5.0">
+  <link rel="stylesheet" href="styles.css?v=2026.08-M6.0">
 </head>
 <body>
   <div class="app-shell">
@@ -22,6 +22,9 @@
       <nav class="main-nav" aria-label="主导航">
         <button class="nav-item active" type="button" data-route="overview">
           <i data-lucide="layout-dashboard"></i><span>资料总览</span>
+        </button>
+        <button class="nav-item" type="button" data-route="attributes">
+          <i data-lucide="scan-search"></i><span>属性查询</span><b id="nav-activity-count">22</b>
         </button>
         <button class="nav-item" type="button" data-route="awards">
           <i data-lucide="trophy"></i><span>奖项资料库</span><b id="nav-award-count">8</b>
@@ -48,7 +51,7 @@
         <i data-lucide="menu"></i>
       </button>
       <strong>明星志愿 1</strong>
-      <span class="mobile-version">M5</span>
+      <span class="mobile-version">M6</span>
     </div>
 
     <main class="main-content">
@@ -85,6 +88,11 @@
         </div>
 
         <div class="module-grid" aria-label="模块概览">
+          <button class="module-card" type="button" data-route-jump="attributes">
+            <span class="module-icon finder"><i data-lucide="scan-search"></i></span>
+            <span><b>12</b><small>项属性合并查询</small></span>
+            <i data-lucide="arrow-up-right"></i>
+          </button>
           <button class="module-card" type="button" data-route-jump="awards">
             <span class="module-icon award"><i data-lucide="trophy"></i></span>
             <span><b>8</b><small>项赛事与奖项</small></span>
@@ -138,6 +146,10 @@
           </div>
           <p id="last-plan-summary">尚未保存规划输入。</p>
         </section>
+      </section>
+
+      <section class="page" id="page-attributes" data-page="attributes">
+        <div id="attribute-explorer"></div>
       </section>
 
       <section class="page library-page" id="page-awards" data-page="awards">
@@ -234,7 +246,7 @@
   </aside>
 
   <script src="assets/vendor/lucide.min.js"></script>
-  <script src="data.js?v=2026.08-M5.0"></script>
-  <script src="app.js?v=2026.08-M5.0"></script>
+  <script src="data.js?v=2026.08-M6.0"></script>
+  <script src="app.js?v=2026.08-M6.0"></script>
 </body>
 </html>
