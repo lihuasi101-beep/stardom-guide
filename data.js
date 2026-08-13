@@ -320,8 +320,8 @@
   });
 
   window.STARDOM_DATA = {
-    version: "2026.08-M6",
-    updatedAt: "2026-08-07",
+    version: "2026.08-M7",
+    updatedAt: "2026-08-13",
     gameVersion: "1995 DOS 原版 · 简体目标构建",
     attributes: attributes,
     sources: sources,
