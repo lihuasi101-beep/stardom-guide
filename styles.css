@@ -923,6 +923,7 @@ svg {
 .stage-mid .roadmap-meter i { background: #b88128; }
 .stage-late .roadmap-meter i { background: #a95545; }
 .roadmap-coverage { margin: 8px 0 12px; color: var(--muted); font-size: 12px; }
+.roadmap-formal-coverage { margin: -4px 0 12px; padding: 7px 8px; border-left: 2px solid var(--accent); background: #f1f5f2; color: var(--ink-soft); font-size: 11px; line-height: 1.5; }
 .roadmap-stage ul, .roadmap-note ul { margin: 0; padding-left: 17px; color: var(--ink-soft); font-size: 12px; line-height: 1.8; }
 .roadmap-stage small { display: block; margin-top: 11px; color: var(--muted); line-height: 1.6; }
 
@@ -934,6 +935,10 @@ svg {
 .roadmap-table-wrap th { color: var(--muted); font-size: 10px; letter-spacing: .04em; }
 .roadmap-table-wrap td { color: var(--ink-soft); }
 .roadmap-table-wrap td b { color: var(--ink); }
+.roadmap-catalog-table { min-width: 920px !important; }
+.roadmap-catalog-table td:nth-child(2) { width: 52px; white-space: nowrap; }
+.fame200-check { background: #fbfcfa; }
+.fame200-check td:nth-child(2), .fame200-check td:nth-child(3) { white-space: nowrap; }
 .roadmap-stage-tag { display: inline-block; padding: 3px 6px; border: 1px solid var(--line-strong); color: var(--muted); font-size: 10px; font-weight: 800; }
 .stage-tag-中期 { border-color: #d4b26b; color: #8a6319; }
 .stage-tag-后期 { border-color: #d09b8f; color: #934837; }

@@ -204,26 +204,55 @@
   ];
 
   const announcementProgression = {
-    title: "通告成长路线",
-    summary: "按已录入的 12 项打工硬门槛分成三段；覆盖率只统计这 12 项，不把尚未复测的电影、唱片、电视和广告合约资格混入百分比。",
+    title: "通告成长路线（全量口径）",
+    summary: "全量通告分为 12 项日常打工与 212 项正式合约（唱片、电影、电视、广告各 53 项）。日常打工的硬门槛已逐项录入；正式合约已核对数量、类型与判定公式，但还没有可靠的逐案数值门槛，因此不把它们伪造进覆盖率。",
     denominator: 12,
+    formalDenominator: 212,
+    fame200Check: {
+      exactFame: 200,
+      strictRule: "通告规则写作“名气大于要求”，所以要求名气 200 的项目需要 201；恰好 200 不算通过。",
+      jobsGuaranteed: 4,
+      jobsRate: 33,
+      jobsAt201: 5,
+      jobsAt201Rate: 42,
+      formalGuaranteed: 0,
+      formalRate: 0,
+      varietyGuaranteed: 0
+    },
+    fullCatalog: [
+      { category: "日常打工", count: 12, numericComplete: "完整", coverage: "4/12（仅看名气 200 且不代入属性）；按阶段属性可到 7/12、10/12、12/12", note: "公司事务、街头表演、慈善义工、临时演员为无属性门槛；其余项目需对应属性。" },
+      { category: "唱片正式合约", count: 53, numericComplete: "未完成", coverage: "不可从当前证据计算", note: "名气 > 个案名气要求；对应能力均需 > 个案要求的 80%。" },
+      { category: "电影正式合约", count: 53, numericComplete: "未完成", coverage: "不可从当前证据计算", note: "名气 > 个案名气要求；演技及影片类型相关能力均需 > 个案要求的 80%。" },
+      { category: "电视正式合约", count: 53, numericComplete: "未完成", coverage: "不可从当前证据计算", note: "名气 > 个案名气要求；名气 + 第一要求能力需 > 两项能力要求总和的 80%。" },
+      { category: "广告正式合约", count: 53, numericComplete: "未完成", coverage: "不可从当前证据计算", note: "名气 > 个案名气要求；名气 + 第一要求能力需 > 两项能力要求总和的 80%。" },
+      { category: "正式合约合计", count: 212, numericComplete: "数量完整，逐案门槛待校准", coverage: "名气 200 单独保证 0/212", note: "缺少 212 个个案的名气与两项能力门槛表，不能诚实给出假精确占比。" }
+    ],
+    attributeBaseline: [
+      { category: "日常打工", attributes: "无门槛 ×4；运动 80/100；歌艺 80/120；智慧 100；性感 100；名气要求 >200（需 201）", coverage: "前期 7/12 · 中期 10/12 · 后期 12/12" },
+      { category: "唱片（53）", attributes: "曲风第一属性：抒情→气质、蓝调→智慧、民歌→道德、舞曲→运动、摇滚→叛逆；另有个案第二能力", coverage: "逐案门槛未齐；两项能力均需 > 要求 ×80%" },
+      { category: "电影（53）", attributes: "演技 + 类型属性：文艺→气质、动作→运动、三级片→性感；喜剧/武侠仍以演技及个案条件判定", coverage: "逐案门槛未齐；两项能力均需 > 要求 ×80%" },
+      { category: "电视（53）", attributes: "个案第一要求能力 + 第二要求能力，不能只看名气", coverage: "逐案门槛未齐；名气 + 第一能力 > 两项要求总和 ×80%" },
+      { category: "广告（53）", attributes: "个案第一要求能力 + 第二要求能力，不能只看名气", coverage: "逐案门槛未齐；名气 + 第一能力 > 两项要求总和 ×80%" },
+      { category: "综艺（额外）", attributes: "主要硬条件为名气；社区资料通常记为 >300（至少 301）", coverage: "不计入 212 项正式合约" }
+    ],
     stages: [
-      { id: "early", name: "前期", target: "运动 80、歌艺 80、智慧 100", threshold: 80, coverage: 58, unlocked: 7, label: "打开基础收入与三条专长入口", focus: ["运动 80：舞池 DJ", "歌艺 80：幕后合音", "智慧 100：人物配音"], note: "连同 4 项无门槛打工，共可使用 7/12 项；名气 80 不是已确认的硬解锁门槛。" },
-      { id: "mid", name: "中期", target: "歌艺 120、运动 100", threshold: 120, coverage: 83, unlocked: 10, label: "形成稳定的专长收入循环", focus: ["歌艺 120：民歌演唱 / 舞厅演唱", "运动 100：舞群伴舞"], note: "在前期基础上再开放 3 项，共覆盖 10/12 项；优先选择与角色定位相符的专长打工。" },
-      { id: "late", name: "后期", target: "名气 200、性感 100；压力保持可控", threshold: 200, coverage: 100, unlocked: 12, label: "进入完整通告池与高收益阶段", focus: ["名气 200：登台作秀", "性感 100：艺术摄影"], note: "补齐最后 2 项后覆盖 12/12；高压力通告需要用休息或低压力训练调节。" }
+      { id: "early", name: "前期", target: "运动 80、歌艺 80、智慧 100；名气先到 80–100", threshold: 80, coverage: 58, unlocked: 7, formalCoverage: "不可计算（212 项逐案门槛未齐）", label: "先打开基础收入与三条专长入口", focus: ["运动 80：舞池 DJ", "歌艺 80：幕后合音", "智慧 100：人物配音"], note: "日常打工覆盖 7/12；正式合约先积累作品与属性，不把名气 200 当作前期目标。" },
+      { id: "mid", name: "中期", target: "歌艺 120、运动 100；主定位属性 120–200", threshold: 120, coverage: 83, unlocked: 10, formalCoverage: "开始尝试低门槛个案，具体数量待逐案数据", label: "形成稳定的专长收入循环", focus: ["歌艺 120：民歌演唱 / 舞厅演唱", "运动 100：舞群伴舞", "围绕演员或歌手定位补第一要求能力"], note: "日常打工覆盖 10/12；正式合约按目标类型逐案检查 80% 能力条件。" },
+      { id: "late", name: "后期", target: "名气 ≥201、性感 100；目标通告能力达到要求的 80% 以上", threshold: 201, coverage: 100, unlocked: 12, formalCoverage: "仍需逐案门槛；名气本身不保证合约", label: "补齐日常打工并进入正式通告筛选", focus: ["名气 201：严格通过要求名气 200 的项目", "性感 100：艺术摄影", "把唱片 / 电影 / 电视 / 广告按个案门槛筛选"], note: "日常打工覆盖 12/12；综艺属于额外通告，社区资料显示通常要名气 ≥301，不计入 212 项正式合约。" }
     ],
     chains: [
       { attribute: "运动", key: "athletics", steps: ["80 · 舞池 DJ", "100 · 舞群伴舞"] },
       { attribute: "歌艺", key: "singing", steps: ["80 · 幕后合音", "120 · 民歌演唱 / 舞厅演唱"] },
       { attribute: "智慧", key: "wisdom", steps: ["100 · 人物配音"] },
       { attribute: "性感", key: "sexiness", steps: ["100 · 艺术摄影"] },
-      { attribute: "名气", key: "fame", steps: ["200 · 登台作秀"] }
+      { attribute: "名气", key: "fame", steps: ["201 · 登台作秀（要求写作 >200）"] }
     ],
     nonNumeric: [
-      "电影、唱片、电视、广告正式合约：目前只保留游戏中的作品成绩、属性要求和通告类型线索，尚无完整可复核的逐项数值门槛。",
+      "电影、唱片、电视、广告正式合约：已确认四类各 53 项及社区流传的判定公式，但 212 个个案的名气与能力数值尚未完成逐项复测。",
+      "名气 200 校验：只看名气时，12 项日常打工可保证 4/12（33%）；到名气 201 才把登台作秀计入，变为 5/12（42%）。这不是全部通告的承接率。",
       "奖项冲刺：作品进入年度前三比单纯属性更优先；属性目标应围绕当前作品的相关属性设置。"
     ],
-    sourceRefs: ["SRC-USER-JOB-TABLE-2026-08-04", "SRC-BAHA-SYSTEM-2015", "SRC-OFFICIAL-MANUAL"]
+    sourceRefs: ["SRC-USER-JOB-TABLE-2026-08-04", "SRC-BAHA-SYSTEM-2015", "SRC-TIEBA-WORK-2022", "SRC-OFFICIAL-MANUAL"]
   };
 
   const jobs = jobSeeds.map(function (item) {
@@ -320,7 +349,7 @@
   });
 
   window.STARDOM_DATA = {
-    version: "2026.08-M7",
+    version: "2026.08-M8",
     updatedAt: "2026-08-13",
     gameVersion: "1995 DOS 原版 · 简体目标构建",
     attributes: attributes,
