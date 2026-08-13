@@ -217,6 +217,11 @@
       jobsAt201Rate: 42,
       formalGuaranteed: 0,
       formalRate: 0,
+      allDenominator: 224,
+      allGuaranteed: 4,
+      allRate: 1.8,
+      allAt201Guaranteed: 5,
+      allAt201Rate: 2.2,
       varietyGuaranteed: 0
     },
     fullCatalog: [
