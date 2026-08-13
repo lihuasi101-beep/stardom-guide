@@ -886,6 +886,70 @@ svg {
   border-top: 1px solid var(--line);
 }
 
+.announcement-roadmap {
+  margin-bottom: 18px;
+  padding: 20px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+}
+
+.roadmap-stage-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.roadmap-stage {
+  min-width: 0;
+  padding: 15px;
+  border: 1px solid var(--line);
+  background: var(--surface-alt);
+}
+
+.roadmap-stage-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.roadmap-stage-top b { color: var(--ink); font-size: 16px; }
+.roadmap-stage h4 { min-height: 42px; margin: 12px 0 10px; color: var(--ink); font-size: 14px; line-height: 1.55; }
+.roadmap-meter { height: 6px; overflow: hidden; background: var(--line); }
+.roadmap-meter i { display: block; height: 100%; background: var(--accent); }
+.stage-mid .roadmap-meter i { background: #b88128; }
+.stage-late .roadmap-meter i { background: #a95545; }
+.roadmap-coverage { margin: 8px 0 12px; color: var(--muted); font-size: 12px; }
+.roadmap-stage ul, .roadmap-note ul { margin: 0; padding-left: 17px; color: var(--ink-soft); font-size: 12px; line-height: 1.8; }
+.roadmap-stage small { display: block; margin-top: 11px; color: var(--muted); line-height: 1.6; }
+
+.roadmap-chain { margin-top: 16px; padding-top: 15px; border-top: 1px solid var(--line); }
+.roadmap-notice-table { margin-top: 16px; padding-top: 15px; border-top: 1px solid var(--line); }
+.roadmap-table-wrap { margin-top: 10px; overflow-x: auto; }
+.roadmap-table-wrap table { width: 100%; min-width: 620px; border-collapse: collapse; }
+.roadmap-table-wrap th, .roadmap-table-wrap td { padding: 9px 10px; border-bottom: 1px solid var(--line); text-align: left; font-size: 12px; }
+.roadmap-table-wrap th { color: var(--muted); font-size: 10px; letter-spacing: .04em; }
+.roadmap-table-wrap td { color: var(--ink-soft); }
+.roadmap-table-wrap td b { color: var(--ink); }
+.roadmap-stage-tag { display: inline-block; padding: 3px 6px; border: 1px solid var(--line-strong); color: var(--muted); font-size: 10px; font-weight: 800; }
+.stage-tag-中期 { border-color: #d4b26b; color: #8a6319; }
+.stage-tag-后期 { border-color: #d09b8f; color: #934837; }
+.roadmap-chain-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+.roadmap-chain-grid > div { display: flex; min-width: 0; flex-direction: column; gap: 5px; }
+.roadmap-chain-grid b { color: var(--ink); font-size: 12px; }
+.roadmap-chain-grid span { color: var(--muted); font-size: 11px; line-height: 1.45; }
+.roadmap-note { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 9px; margin-top: 16px; padding: 12px; background: #eef2ef; color: var(--ink-soft); }
+.roadmap-note > i { color: var(--accent); }
+.roadmap-note b { display: block; margin-bottom: 5px; color: var(--ink); font-size: 12px; }
+
+@media (max-width: 820px) {
+  .roadmap-stage-grid, .roadmap-chain-grid { grid-template-columns: 1fr; }
+  .roadmap-stage h4 { min-height: 0; }
+}
+
 .job-progression-note > svg {
   color: var(--gold);
 }

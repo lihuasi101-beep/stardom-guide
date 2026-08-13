@@ -203,6 +203,29 @@
     { id: "stage_show", name: "登台作秀", icon: "star", requirement: "名气 200", requirementAttribute: "fame", requirementValue: 200, unlockStage: "属性门槛", income: 1500, incomeCode: 5, abilityWeight: 6, exact: { sexiness: 5, confidence: 3, temperament: -1, wisdom: -1, pressure: 5, fame: 6 } }
   ];
 
+  const announcementProgression = {
+    title: "通告成长路线",
+    summary: "按已录入的 12 项打工硬门槛分成三段；覆盖率只统计这 12 项，不把尚未复测的电影、唱片、电视和广告合约资格混入百分比。",
+    denominator: 12,
+    stages: [
+      { id: "early", name: "前期", target: "运动 80、歌艺 80、智慧 100", threshold: 80, coverage: 58, unlocked: 7, label: "打开基础收入与三条专长入口", focus: ["运动 80：舞池 DJ", "歌艺 80：幕后合音", "智慧 100：人物配音"], note: "连同 4 项无门槛打工，共可使用 7/12 项；名气 80 不是已确认的硬解锁门槛。" },
+      { id: "mid", name: "中期", target: "歌艺 120、运动 100", threshold: 120, coverage: 83, unlocked: 10, label: "形成稳定的专长收入循环", focus: ["歌艺 120：民歌演唱 / 舞厅演唱", "运动 100：舞群伴舞"], note: "在前期基础上再开放 3 项，共覆盖 10/12 项；优先选择与角色定位相符的专长打工。" },
+      { id: "late", name: "后期", target: "名气 200、性感 100；压力保持可控", threshold: 200, coverage: 100, unlocked: 12, label: "进入完整通告池与高收益阶段", focus: ["名气 200：登台作秀", "性感 100：艺术摄影"], note: "补齐最后 2 项后覆盖 12/12；高压力通告需要用休息或低压力训练调节。" }
+    ],
+    chains: [
+      { attribute: "运动", key: "athletics", steps: ["80 · 舞池 DJ", "100 · 舞群伴舞"] },
+      { attribute: "歌艺", key: "singing", steps: ["80 · 幕后合音", "120 · 民歌演唱 / 舞厅演唱"] },
+      { attribute: "智慧", key: "wisdom", steps: ["100 · 人物配音"] },
+      { attribute: "性感", key: "sexiness", steps: ["100 · 艺术摄影"] },
+      { attribute: "名气", key: "fame", steps: ["200 · 登台作秀"] }
+    ],
+    nonNumeric: [
+      "电影、唱片、电视、广告正式合约：目前只保留游戏中的作品成绩、属性要求和通告类型线索，尚无完整可复核的逐项数值门槛。",
+      "奖项冲刺：作品进入年度前三比单纯属性更优先；属性目标应围绕当前作品的相关属性设置。"
+    ],
+    sourceRefs: ["SRC-USER-JOB-TABLE-2026-08-04", "SRC-BAHA-SYSTEM-2015", "SRC-OFFICIAL-MANUAL"]
+  };
+
   const jobs = jobSeeds.map(function (item) {
     const effectKeys = Object.keys(item.exact);
     return {
@@ -304,6 +327,7 @@
     sources: sources,
     awards: awards,
     jobs: jobs,
+    announcementProgression: announcementProgression,
     companyProgression: companyProgression,
     trainings: trainings,
     planner: {

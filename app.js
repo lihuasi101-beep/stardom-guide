@@ -172,7 +172,21 @@
       if (!source || !source.url) return "";
       return '<a href="' + escapeHtml(source.url) + '" target="_blank" rel="noreferrer">' + escapeHtml(source.type) + '<i data-lucide="external-link"></i></a>';
     }).join("");
-    target.innerHTML = '<section class="job-progression" aria-labelledby="job-progression-title">' +
+    const route = data.announcementProgression;
+    const routeHtml = route ? '<section class="announcement-roadmap" aria-labelledby="announcement-roadmap-title">' +
+      '<header class="job-progression-heading"><div><p>按硬门槛分层</p><h3 id="announcement-roadmap-title">' + escapeHtml(route.title) + '</h3></div><span><i data-lucide="milestone"></i>12 项打工口径</span></header>' +
+      '<p class="job-progression-summary">' + escapeHtml(route.summary) + '</p>' +
+      '<div class="roadmap-stage-grid">' + route.stages.map(function (stage) {
+        return '<article class="roadmap-stage stage-' + stage.id + '"><div class="roadmap-stage-top"><span>' + escapeHtml(stage.name) + '</span><b>' + stage.unlocked + ' / ' + route.denominator + '</b></div><h4>' + escapeHtml(stage.target) + '</h4><div class="roadmap-meter"><i style="width:' + stage.coverage + '%"></i></div><p class="roadmap-coverage">覆盖 ' + stage.coverage + '% · ' + escapeHtml(stage.label) + '</p><ul>' + stage.focus.map(function (item) { return '<li>' + escapeHtml(item) + '</li>'; }).join('') + '</ul><small>' + escapeHtml(stage.note) + '</small></article>';
+      }).join('') + '</div>' +
+      '<div class="roadmap-notice-table"><div class="checkpoint-title"><span>12 项打工门槛总表</span><small>无门槛项目也列出，方便按阶段查缺口</small></div><div class="roadmap-table-wrap"><table><thead><tr><th>阶段</th><th>通告</th><th>属性门槛</th><th>收入</th></tr></thead><tbody>' + data.jobs.map(function (item) {
+        const stage = !item.requirementAttribute ? "前期" : item.requirementValue >= 200 || item.requirementAttribute === "sexiness" ? "后期" : item.requirementValue >= 120 ? "中期" : "前期";
+        return '<tr><td><span class="roadmap-stage-tag stage-tag-' + stage + '">' + stage + '</span></td><td><b>' + escapeHtml(item.name) + '</b></td><td>' + escapeHtml(item.requirement) + '</td><td>' + (item.income ? item.income.toLocaleString("zh-CN") + ' 元' : '无') + '</td></tr>';
+      }).join('') + '</tbody></table></div></div>' +
+      '<div class="roadmap-chain"><div class="checkpoint-title"><span>属性解锁链</span><small>达到阈值即可纳入对应候选池</small></div><div class="roadmap-chain-grid">' + route.chains.map(function (chain) { return '<div><b>' + escapeHtml(chain.attribute) + '</b>' + chain.steps.map(function (step) { return '<span>' + escapeHtml(step) + '</span>'; }).join('') + '</div>'; }).join('') + '</div></div>' +
+      '<div class="roadmap-note"><i data-lucide="info"></i><div><b>非数值资格单独处理</b><ul>' + route.nonNumeric.map(function (item) { return '<li>' + escapeHtml(item) + '</li>'; }).join('') + '</ul></div></div>' +
+      '</section>' : '';
+    target.innerHTML = routeHtml + '<section class="job-progression" aria-labelledby="job-progression-title">' +
       '<header class="job-progression-heading"><div><p>公司属性与随机事件</p><h3 id="job-progression-title">' + escapeHtml(guide.title) + '</h3></div><span><i data-lucide="shield-check"></i>分级核验</span></header>' +
       '<p class="job-progression-summary">' + escapeHtml(guide.summary) + '</p>' +
       '<div class="job-progression-grid">' +
