@@ -8,7 +8,8 @@
     awards: { title: "奖项资料库", eyebrow: "赛事与判定" },
     jobs: { title: "打工资料库", eyebrow: "工作与属性变化" },
     trainings: { title: "训练资料库", eyebrow: "课程与成长方向" },
-    planner: { title: "养成规划", eyebrow: "单艺人周计划" }
+    planner: { title: "养成规划", eyebrow: "单艺人周计划" },
+    schedule: { title: "档期计算", eyebrow: "通告冲突与违约风险" }
   };
 
   const statusMeta = {
@@ -51,9 +52,13 @@
     drawerIcon: document.getElementById("drawer-icon"),
     plannerForm: document.getElementById("planner-form"),
     plannerOutput: document.getElementById("planner-output"),
-    saveState: document.getElementById("save-state")
+    saveState: document.getElementById("save-state"),
+    scheduleForm: document.getElementById("schedule-form"),
+    scheduleContractList: document.getElementById("schedule-contract-list"),
+    scheduleOutput: document.getElementById("schedule-output")
   };
   const filterSearchTimers = {};
+  let scheduleContractCounter = 0;
 
   function iconRefresh() {
     if (window.lucide && typeof window.lucide.createIcons === "function") {
@@ -1198,12 +1203,398 @@
     return buildPlannerSuccess(snapshot, actions, search, targets);
   }
 
+  function scheduleContractId() {
+    scheduleContractCounter += 1;
+    return "contract-" + Date.now().toString(36) + "-" + scheduleContractCounter;
+  }
+
+  function scheduleDefaultContract(status) {
+    return {
+      id: scheduleContractId(),
+      status: status || "existing",
+      name: "",
+      remainingDays: 1,
+      deadline: "1995-02-28",
+      weekdays: [1, 2, 3, 4, 5, 6]
+    };
+  }
+
+  function scheduleInitialSnapshot() {
+    return {
+      artist: "艺人 A",
+      startDate: "1995-01-02",
+      bufferSlots: data.scheduleCalculator.defaultBufferSlots,
+      contracts: [scheduleDefaultContract("existing"), scheduleDefaultContract("candidate")]
+    };
+  }
+
+  function scheduleExampleSnapshot() {
+    return {
+      artist: "艺人 A",
+      startDate: "1995-01-02",
+      bufferSlots: 2,
+      contracts: [
+        { id: scheduleContractId(), status: "existing", name: "电影 A", remainingDays: 12, deadline: "1995-03-31", weekdays: [1, 3, 5] },
+        { id: scheduleContractId(), status: "candidate", name: "广告 B", remainingDays: 4, deadline: "1995-02-28", weekdays: [2, 4, 6] }
+      ]
+    };
+  }
+
+  function scheduleContractRow(contract, index) {
+    const weekdayLabels = data.scheduleCalculator.weekdayLabels;
+    return '<article class="schedule-contract-row" data-schedule-contract="' + escapeHtml(contract.id) + '">' +
+      '<header><span class="schedule-contract-number">' + String(index + 1).padStart(2, "0") + '</span><label class="schedule-status-select"><span>状态</span><select data-schedule-field="status"><option value="existing"' + (contract.status === "existing" ? " selected" : "") + '>已有通告</option><option value="candidate"' + (contract.status === "candidate" ? " selected" : "") + '>待接通告</option></select></label><button class="icon-button schedule-remove" type="button" data-schedule-remove aria-label="删除通告" title="删除通告"><i data-lucide="trash-2"></i></button></header>' +
+      '<div class="schedule-contract-fields"><label class="schedule-name-field"><span>通告名称</span><input type="text" maxlength="30" data-schedule-field="name" value="' + escapeHtml(contract.name) + '" placeholder="例如：电影 A"></label><label><span>剩余工作日</span><input type="number" min="1" max="99" data-schedule-field="remainingDays" value="' + Number(contract.remainingDays || 1) + '"></label><label><span>截止日</span><input type="date" min="1995-01-01" max="1996-12-31" data-schedule-field="deadline" value="' + escapeHtml(contract.deadline) + '"></label></div>' +
+      '<fieldset class="schedule-weekdays"><legend>允许工作星期</legend>' + weekdayLabels.map(function (label, weekdayIndex) {
+        const weekday = weekdayIndex + 1;
+        return '<label><input type="checkbox" data-schedule-field="weekday" value="' + weekday + '"' + (contract.weekdays.includes(weekday) ? " checked" : "") + '><span>周' + label + '</span></label>';
+      }).join("") + '</fieldset>' +
+    '</article>';
+  }
+
+  function renderScheduleContracts(contracts) {
+    refs.scheduleContractList.innerHTML = contracts.map(scheduleContractRow).join("");
+    iconRefresh();
+  }
+
+  function applyScheduleSnapshot(snapshot) {
+    refs.scheduleForm.elements.artist.value = snapshot.artist || "艺人 A";
+    refs.scheduleForm.elements.startDate.value = snapshot.startDate || "1995-01-02";
+    refs.scheduleForm.elements.bufferSlots.value = Number.isFinite(Number(snapshot.bufferSlots)) ? snapshot.bufferSlots : 2;
+    renderScheduleContracts(Array.isArray(snapshot.contracts) ? snapshot.contracts : []);
+  }
+
+  function readScheduleSnapshot() {
+    return {
+      artist: refs.scheduleForm.elements.artist.value.trim() || "未命名艺人",
+      startDate: refs.scheduleForm.elements.startDate.value,
+      bufferSlots: Math.max(0, Number(refs.scheduleForm.elements.bufferSlots.value || 0)),
+      contracts: Array.from(refs.scheduleContractList.querySelectorAll("[data-schedule-contract]")).map(function (row) {
+        return {
+          id: row.dataset.scheduleContract,
+          status: row.querySelector('[data-schedule-field="status"]').value,
+          name: row.querySelector('[data-schedule-field="name"]').value.trim(),
+          remainingDays: Number(row.querySelector('[data-schedule-field="remainingDays"]').value || 0),
+          deadline: row.querySelector('[data-schedule-field="deadline"]').value,
+          weekdays: Array.from(row.querySelectorAll('[data-schedule-field="weekday"]:checked')).map(function (input) { return Number(input.value); })
+        };
+      })
+    };
+  }
+
+  function saveScheduleSnapshot(snapshot) {
+    try {
+      localStorage.setItem("stardomGuide.scheduleCalculator", JSON.stringify(snapshot));
+    } catch (error) {
+      return false;
+    }
+    return true;
+  }
+
+  function restoreScheduleSnapshot() {
+    try {
+      const saved = JSON.parse(localStorage.getItem("stardomGuide.scheduleCalculator") || "null");
+      if (saved && Array.isArray(saved.contracts)) return saved;
+    } catch (error) {
+      return scheduleInitialSnapshot();
+    }
+    return scheduleInitialSnapshot();
+  }
+
+  function scheduleParseDate(value) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value || "")) return null;
+    const date = new Date(value + "T00:00:00Z");
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  function scheduleIsoDate(date) {
+    return date.toISOString().slice(0, 10);
+  }
+
+  function scheduleAddDays(date, amount) {
+    return new Date(date.getTime() + amount * 86400000);
+  }
+
+  function scheduleWeekday(date) {
+    return date.getUTCDay() || 7;
+  }
+
+  function scheduleDateLabel(value) {
+    const date = typeof value === "string" ? scheduleParseDate(value) : value;
+    if (!date) return "—";
+    return (date.getUTCMonth() + 1) + "/" + date.getUTCDate();
+  }
+
+  function scheduleWeekdayText(weekdays) {
+    return (weekdays || []).map(function (weekday) { return data.scheduleCalculator.weekdayLabels[weekday - 1]; }).join("");
+  }
+
+  function validateScheduleSnapshot(snapshot) {
+    const errors = [];
+    const start = scheduleParseDate(snapshot.startDate);
+    if (!start) errors.push("请选择有效的首个可排日期。");
+    if (!snapshot.contracts.length) errors.push("至少添加一份通告。");
+    snapshot.contracts.forEach(function (contract, index) {
+      const label = contract.name || "第 " + (index + 1) + " 份通告";
+      const deadline = scheduleParseDate(contract.deadline);
+      if (!deadline) errors.push(label + "缺少有效截止日。");
+      else if (start && deadline < start) errors.push(label + "的截止日早于首个可排日期。");
+      if (!Number.isInteger(contract.remainingDays) || contract.remainingDays < 1) errors.push(label + "的剩余工作日必须大于 0。");
+      if (!contract.weekdays.length) errors.push(label + "至少要选择一个允许工作星期。");
+    });
+    return errors;
+  }
+
+  function simulateSchedule(contracts, startDateValue) {
+    const start = scheduleParseDate(startDateValue);
+    const maxDeadline = contracts.reduce(function (latest, contract) {
+      const deadline = scheduleParseDate(contract.deadline);
+      return !latest || deadline > latest ? deadline : latest;
+    }, start);
+    const horizonLimit = scheduleAddDays(start, data.scheduleCalculator.maxHorizonDays - 1);
+    const end = maxDeadline > horizonLimit ? horizonLimit : maxDeadline;
+    const dates = [];
+    for (let cursor = new Date(start); cursor <= end; cursor = scheduleAddDays(cursor, 1)) {
+      dates.push({ iso: scheduleIsoDate(cursor), date: new Date(cursor), weekday: scheduleWeekday(cursor) });
+    }
+
+    const units = [];
+    contracts.forEach(function (contract, contractIndex) {
+      const deadline = scheduleParseDate(contract.deadline);
+      const allowedDates = dates.filter(function (date) {
+        return date.date <= deadline && contract.weekdays.includes(date.weekday);
+      }).map(function (date) { return date.iso; });
+      for (let unitIndex = 0; unitIndex < contract.remainingDays; unitIndex++) {
+        units.push({ id: contract.id + "-unit-" + unitIndex, contract: contract, contractIndex: contractIndex, deadline: contract.deadline, allowedDates: allowedDates });
+      }
+    });
+    units.sort(function (a, b) {
+      if (a.deadline !== b.deadline) return a.deadline.localeCompare(b.deadline);
+      if (a.contract.status !== b.contract.status) return a.contract.status === "existing" ? -1 : 1;
+      return a.contractIndex - b.contractIndex;
+    });
+
+    let dateToUnit = new Map();
+    function assignUnit(unit, visitedDates) {
+      for (let index = 0; index < unit.allowedDates.length; index++) {
+        const iso = unit.allowedDates[index];
+        if (visitedDates.has(iso)) continue;
+        visitedDates.add(iso);
+        const occupied = dateToUnit.get(iso);
+        if (!occupied || assignUnit(occupied, visitedDates)) {
+          dateToUnit.set(iso, unit);
+          return true;
+        }
+      }
+      return false;
+    }
+    units.forEach(function (unit) { assignUnit(unit, new Set()); });
+
+    if (dateToUnit.size === units.length) {
+      const remainingByContract = new Map(contracts.map(function (contract) { return [contract.id, contract.remainingDays]; }));
+      const greedyAssignments = new Map();
+      dates.forEach(function (date) {
+        const eligible = contracts.filter(function (contract) {
+          return remainingByContract.get(contract.id) > 0 && date.iso <= contract.deadline && contract.weekdays.includes(date.weekday);
+        }).sort(function (a, b) {
+          if (a.deadline !== b.deadline) return a.deadline.localeCompare(b.deadline);
+          if (a.weekdays.length !== b.weekdays.length) return a.weekdays.length - b.weekdays.length;
+          if (a.status !== b.status) return a.status === "existing" ? -1 : 1;
+          return 0;
+        });
+        if (!eligible.length) return;
+        const contract = eligible[0];
+        greedyAssignments.set(date.iso, { contract: contract });
+        remainingByContract.set(contract.id, remainingByContract.get(contract.id) - 1);
+      });
+      if (greedyAssignments.size === units.length) dateToUnit = greedyAssignments;
+    }
+
+    const contractResults = contracts.map(function (contract) {
+      const scheduledDates = Array.from(dateToUnit.entries()).filter(function (entry) { return entry[1].contract.id === contract.id; }).map(function (entry) { return entry[0]; }).sort();
+      const completionDate = scheduledDates.length === contract.remainingDays ? scheduledDates[scheduledDates.length - 1] : null;
+      const deadline = scheduleParseDate(contract.deadline);
+      let bufferSlots = 0;
+      if (completionDate) {
+        const completion = scheduleParseDate(completionDate);
+        for (let cursor = scheduleAddDays(completion, 1); cursor <= deadline; cursor = scheduleAddDays(cursor, 1)) {
+          const iso = scheduleIsoDate(cursor);
+          if (contract.weekdays.includes(scheduleWeekday(cursor)) && !dateToUnit.has(iso)) bufferSlots += 1;
+        }
+      }
+      return {
+        id: contract.id,
+        status: contract.status,
+        name: contract.name || "未命名通告",
+        weekdays: contract.weekdays,
+        requiredDays: contract.remainingDays,
+        assignedDays: scheduledDates.length,
+        deadline: contract.deadline,
+        completionDate: completionDate,
+        bufferSlots: bufferSlots,
+        feasible: scheduledDates.length === contract.remainingDays
+      };
+    });
+    const assignments = new Map(Array.from(dateToUnit.entries()).map(function (entry) {
+      return [entry[0], { id: entry[1].contract.id, name: entry[1].contract.name || "未命名通告", status: entry[1].contract.status }];
+    }));
+    return {
+      feasible: contractResults.every(function (contract) { return contract.feasible; }),
+      contractResults: contractResults,
+      assignments: assignments,
+      assignedDays: assignments.size,
+      totalDays: units.length
+    };
+  }
+
+  function buildScheduleWeeks(startDateValue, assignments) {
+    const start = scheduleParseDate(startDateValue);
+    const assignedDates = Array.from(assignments.keys()).sort();
+    const lastAssigned = assignedDates.length ? scheduleParseDate(assignedDates[assignedDates.length - 1]) : start;
+    const firstMonday = scheduleAddDays(start, 1 - scheduleWeekday(start));
+    const totalWeeks = Math.max(1, Math.ceil((lastAssigned - firstMonday + 86400000) / (7 * 86400000)));
+    const shownWeeks = Math.min(totalWeeks, 24);
+    const weeks = [];
+    for (let weekIndex = 0; weekIndex < shownWeeks; weekIndex++) {
+      const weekStart = scheduleAddDays(firstMonday, weekIndex * 7);
+      const days = [];
+      for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
+        const date = scheduleAddDays(weekStart, dayIndex);
+        const iso = scheduleIsoDate(date);
+        days.push({ iso: iso, date: date, beforeStart: date < start, assignment: assignments.get(iso) || null });
+      }
+      weeks.push({ index: weekIndex + 1, start: weekStart, days: days });
+    }
+    return { weeks: weeks, hiddenWeeks: totalWeeks - shownWeeks };
+  }
+
+  function calculateSchedule(snapshot) {
+    const errors = validateScheduleSnapshot(snapshot);
+    if (errors.length) return { status: "invalid", title: "输入尚未完整", diagnostics: errors };
+    const existing = snapshot.contracts.filter(function (contract) { return contract.status === "existing"; });
+    const candidates = snapshot.contracts.filter(function (contract) { return contract.status === "candidate"; });
+    const existingSimulation = simulateSchedule(existing, snapshot.startDate);
+    const combinedSimulation = simulateSchedule(snapshot.contracts, snapshot.startDate);
+    let status = "safe";
+    let title = candidates.length ? "可以接下待接通告" : "现有通告可以按期完成";
+    const diagnostics = [];
+    if (!existingSimulation.feasible) {
+      status = "blocked";
+      title = "现有通告已经存在违约风险";
+      diagnostics.push("不加入新通告时，已有通告也无法全部排完；应先缩减现有工作或读取更早的存档。");
+    } else if (!combinedSimulation.feasible) {
+      status = "blocked";
+      title = "档期不足，不建议接下新通告";
+      diagnostics.push("加入待接通告后至少有一份通告无法在截止日前完成。");
+    } else {
+      const tightContracts = combinedSimulation.contractResults.filter(function (contract) { return contract.bufferSlots < snapshot.bufferSlots; });
+      if (tightContracts.length) {
+        status = "risk";
+        title = "理论可完成，但安全余量不足";
+        diagnostics.push(tightContracts.map(function (contract) { return contract.name; }).join("、") + "低于设置的 " + snapshot.bufferSlots + " 个备用工作日。");
+      } else {
+        diagnostics.push("所有通告均可完成，并保留设置的安全工作日余量。");
+      }
+    }
+    if (candidates.length && combinedSimulation.feasible) diagnostics.push("排期可行不代表游戏一定允许同时签约；仍以签约界面的可选状态为准。");
+    return {
+      status: status,
+      title: title,
+      artist: snapshot.artist,
+      startDate: snapshot.startDate,
+      bufferSlots: snapshot.bufferSlots,
+      diagnostics: diagnostics,
+      contracts: combinedSimulation.contractResults,
+      assignments: combinedSimulation.assignments,
+      assignedDays: combinedSimulation.assignedDays,
+      totalDays: combinedSimulation.totalDays,
+      weeks: buildScheduleWeeks(snapshot.startDate, combinedSimulation.assignments)
+    };
+  }
+
+  function scheduleVerdictLabel(contract, bufferSlots) {
+    if (!contract.feasible) return '<span class="schedule-verdict blocked">不可完成</span>';
+    if (contract.bufferSlots < bufferSlots) return '<span class="schedule-verdict risk">余量不足</span>';
+    return '<span class="schedule-verdict safe">可完成</span>';
+  }
+
+  function renderScheduleResult(result) {
+    if (result.status === "invalid") {
+      refs.scheduleOutput.innerHTML = '<div class="schedule-result invalid"><div class="schedule-result-header"><span><i data-lucide="circle-alert"></i></span><div><p>无法计算</p><h3>' + escapeHtml(result.title) + '</h3></div></div><ul class="schedule-diagnostics">' + result.diagnostics.map(function (item) { return '<li>' + escapeHtml(item) + '</li>'; }).join("") + '</ul></div>';
+      iconRefresh();
+      return;
+    }
+    const statusMeta = {
+      safe: { kicker: "档期可行", icon: "calendar-check-2", label: "可接" },
+      risk: { kicker: "档期紧张", icon: "triangle-alert", label: "高风险" },
+      blocked: { kicker: "档期冲突", icon: "calendar-x-2", label: "不建议接" }
+    }[result.status];
+    const candidateCount = result.contracts.filter(function (contract) { return contract.status === "candidate"; }).length;
+    const latestCompletion = result.contracts.filter(function (contract) { return contract.completionDate; }).map(function (contract) { return contract.completionDate; }).sort().pop();
+    const contractRows = result.contracts.map(function (contract) {
+      return '<tr><td><span class="schedule-kind ' + contract.status + '">' + (contract.status === "existing" ? "已有" : "待接") + '</span></td><td><b>' + escapeHtml(contract.name) + '</b></td><td>周' + escapeHtml(scheduleWeekdayText(contract.weekdays)) + '</td><td>' + contract.assignedDays + ' / ' + contract.requiredDays + '</td><td>' + (contract.completionDate ? scheduleDateLabel(contract.completionDate) : "—") + '</td><td>' + scheduleDateLabel(contract.deadline) + '</td><td>' + (contract.feasible ? contract.bufferSlots + ' 天' : '缺 ' + (contract.requiredDays - contract.assignedDays) + ' 天') + '</td><td>' + scheduleVerdictLabel(contract, result.bufferSlots) + '</td></tr>';
+    }).join("");
+    const timelineRows = result.weeks.weeks.map(function (week) {
+      return '<div class="schedule-week-row"><div class="schedule-week-label"><b>第 ' + week.index + ' 周</b><span>' + scheduleDateLabel(week.start) + '</span></div>' + week.days.map(function (day, dayIndex) {
+        const assignment = day.assignment;
+        return '<div class="schedule-day' + (day.beforeStart ? ' disabled' : '') + (assignment ? ' assigned ' + assignment.status : '') + '"><small>' + data.scheduleCalculator.weekdayLabels[dayIndex] + ' · ' + scheduleDateLabel(day.date) + '</small>' + (assignment ? '<b title="' + escapeHtml(assignment.name) + '">' + escapeHtml(assignment.name) + '</b><span>' + (assignment.status === "existing" ? "已有" : "待接") + '</span>' : '<b>—</b>') + '</div>';
+      }).join("") + '</div>';
+    }).join("");
+    refs.scheduleOutput.innerHTML = '<div class="schedule-result ' + result.status + '">' +
+      '<div class="schedule-result-header"><span><i data-lucide="' + statusMeta.icon + '"></i></span><div><p>' + statusMeta.kicker + '</p><h3>' + escapeHtml(result.title) + '</h3><small>' + escapeHtml(result.artist) + ' · 从 ' + scheduleDateLabel(result.startDate) + ' 开始排程</small></div><em>' + statusMeta.label + '</em></div>' +
+      '<div class="schedule-summary-grid"><div><span>通告</span><b>' + result.contracts.length + '</b></div><div><span>待接</span><b>' + candidateCount + '</b></div><div><span>已排工作日</span><b>' + result.assignedDays + ' / ' + result.totalDays + '</b></div><div><span>最晚完成</span><b>' + (latestCompletion ? scheduleDateLabel(latestCompletion) : "—") + '</b></div></div>' +
+      '<ul class="schedule-diagnostics">' + result.diagnostics.map(function (item) { return '<li>' + escapeHtml(item) + '</li>'; }).join("") + '</ul>' +
+      '<section class="schedule-result-section"><div class="schedule-result-heading"><div><p>容量核对</p><h4>逐通告结论</h4></div><span>安全余量 ' + result.bufferSlots + ' 工作日</span></div><div class="schedule-table-wrap"><table><thead><tr><th>类别</th><th>通告</th><th>星期</th><th>已排/需要</th><th>完成</th><th>截止</th><th>余量</th><th>判断</th></tr></thead><tbody>' + contractRows + '</tbody></table></div></section>' +
+      '<section class="schedule-result-section"><div class="schedule-result-heading"><div><p>逐日安排</p><h4>建议档期</h4></div><span>截止日最早优先</span></div><div class="schedule-timeline-wrap"><div class="schedule-timeline">' + timelineRows + '</div></div>' + (result.weeks.hiddenWeeks ? '<p class="schedule-hidden-weeks">后续 ' + result.weeks.hiddenWeeks + ' 周未展开；逐通告结论仍按完整档期计算。</p>' : '') + '</section>' +
+      '<footer class="schedule-evidence-note"><i data-lucide="shield-alert"></i><p>计算器验证的是时间容量，不替代游戏签约限制。通告星期、剩余天数和截止日应以当前游戏画面为准。</p></footer>' +
+    '</div>';
+    iconRefresh();
+  }
+
+  function renderScheduleCalculator() {
+    applyScheduleSnapshot(restoreScheduleSnapshot());
+    window.STARDOM_SCHEDULE_CALCULATOR = Object.freeze({ calculate: calculateSchedule });
+  }
+
   function bindEvents() {
     document.addEventListener("click", function (event) {
       const nav = event.target.closest("[data-route]");
       if (nav) navigate(nav.dataset.route);
       const jump = event.target.closest("[data-route-jump]");
       if (jump) navigate(jump.dataset.routeJump);
+
+      const scheduleAdd = event.target.closest("[data-schedule-add]");
+      if (scheduleAdd) {
+        const snapshot = readScheduleSnapshot();
+        snapshot.contracts.push(scheduleDefaultContract(scheduleAdd.dataset.scheduleAdd));
+        applyScheduleSnapshot(snapshot);
+        saveScheduleSnapshot(snapshot);
+        return;
+      }
+      const scheduleRemove = event.target.closest("[data-schedule-remove]");
+      if (scheduleRemove) {
+        const snapshot = readScheduleSnapshot();
+        const row = scheduleRemove.closest("[data-schedule-contract]");
+        snapshot.contracts = snapshot.contracts.filter(function (contract) { return contract.id !== row.dataset.scheduleContract; });
+        applyScheduleSnapshot(snapshot);
+        saveScheduleSnapshot(snapshot);
+        return;
+      }
+      if (event.target.closest("[data-schedule-example]")) {
+        const snapshot = scheduleExampleSnapshot();
+        applyScheduleSnapshot(snapshot);
+        saveScheduleSnapshot(snapshot);
+        renderScheduleResult(calculateSchedule(snapshot));
+        return;
+      }
+      if (event.target.closest("[data-schedule-clear]")) {
+        const snapshot = scheduleInitialSnapshot();
+        applyScheduleSnapshot(snapshot);
+        saveScheduleSnapshot(snapshot);
+        refs.scheduleOutput.innerHTML = '<div class="empty-plan schedule-empty"><span class="empty-illustration"><i data-lucide="calendar-days"></i></span><p class="empty-kicker">单艺人逐日排程</p><h3>录入通告后检查冲突</h3><p>已有通告会先进行可行性检查，再判断待接通告能否在不造成违约的情况下插入。</p></div>';
+        iconRefresh();
+        return;
+      }
 
       const reset = event.target.closest("[data-reset-filter]");
       if (reset) resetFilters(reset.closest("[data-toolbar-kind]").dataset.toolbarKind);
@@ -1307,6 +1698,19 @@
       renderPlannerResult(result);
       savePlanner(snapshot, result);
     });
+    refs.scheduleForm.addEventListener("input", function () {
+      saveScheduleSnapshot(readScheduleSnapshot());
+    });
+    refs.scheduleForm.addEventListener("change", function () {
+      saveScheduleSnapshot(readScheduleSnapshot());
+    });
+    refs.scheduleForm.addEventListener("submit", function (event) {
+      event.preventDefault();
+      const snapshot = readScheduleSnapshot();
+      const result = calculateSchedule(snapshot);
+      renderScheduleResult(result);
+      saveScheduleSnapshot(snapshot);
+    });
 
     window.addEventListener("hashchange", function () { navigate(window.location.hash.replace("#", ""), false); });
   }
@@ -1326,6 +1730,7 @@
     renderLibrary("jobs");
     renderLibrary("trainings");
     renderPlannerForm();
+    renderScheduleCalculator();
     bindEvents();
     navigate(window.location.hash.replace("#", "") || "overview", false);
     iconRefresh();

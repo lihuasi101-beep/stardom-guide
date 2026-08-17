@@ -354,8 +354,8 @@
   });
 
   window.STARDOM_DATA = {
-    version: "2026.08-M8",
-    updatedAt: "2026-08-13",
+    version: "2026.08-M9",
+    updatedAt: "2026-08-17",
     gameVersion: "1995 DOS 原版 · 简体目标构建",
     attributes: attributes,
     sources: sources,
@@ -371,6 +371,17 @@
       maxActionsPerWeek: 7,
       deadline: "1996-12-31",
       message: "使用 12 项打工和 10 项训练精确表估算；每次活动按 1 天计算，训练费用、成长上限与随机波动暂不计入。"
+    },
+    scheduleCalculator: {
+      defaultBufferSlots: 2,
+      maxHorizonDays: 731,
+      weekdayLabels: ["一", "二", "三", "四", "五", "六", "日"],
+      assumptions: [
+        "同一艺人每天只能执行一份通告。",
+        "截止日当天仍可安排工作，允许星期由玩家按通告资料录入。",
+        "计算器只验证排期容量；游戏是否允许同时签约仍以签约界面为准。"
+      ],
+      sourceRefs: ["SRC-BAHA-SYSTEM-2015"]
     }
   };
 })();
