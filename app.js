@@ -60,12 +60,14 @@
     scheduleArtistTabs: document.getElementById("schedule-artist-tabs"),
     scheduleAddArtist: document.getElementById("schedule-add-artist"),
     scheduleSaveState: document.getElementById("schedule-save-state"),
-    scheduleSubmitLabel: document.getElementById("schedule-submit-label")
+    scheduleSubmitLabel: document.getElementById("schedule-submit-label"),
+    scheduleFormErrors: document.getElementById("schedule-form-errors")
   };
   const filterSearchTimers = {};
   let scheduleContractCounter = 0;
   let scheduleArtistCounter = 0;
   let scheduleWorkspaceState = null;
+  let scheduleVisibleIssues = [];
 
   function iconRefresh() {
     if (window.lucide && typeof window.lucide.createIcons === "function") {
@@ -1238,7 +1240,8 @@
       startDate: "1995-01-02",
       bufferSlots: data.scheduleCalculator.defaultBufferSlots,
       contracts: [],
-      calculated: false
+      calculated: false,
+      validationAttempted: false
     };
   }
 
@@ -1252,7 +1255,8 @@
         { id: scheduleContractId(), status: "existing", name: "电影 A", remainingDays: 12, deadline: "1995-03-31", weekdays: [1, 3, 5] },
         { id: scheduleContractId(), status: "candidate", name: "广告 B", remainingDays: 4, deadline: "1995-02-28", weekdays: [2, 4, 6] }
       ],
-      calculated: true
+      calculated: true,
+      validationAttempted: true
     };
   }
 
@@ -1298,7 +1302,8 @@
           weekdays: Array.from(row.querySelectorAll('[data-schedule-field="weekday"]:checked')).map(function (input) { return Number(input.value); })
         };
       }),
-      calculated: active ? Boolean(active.calculated) : false
+      calculated: active ? Boolean(active.calculated) : false,
+      validationAttempted: active ? Boolean(active.validationAttempted) : false
     };
   }
 
@@ -1325,7 +1330,8 @@
       startDate: artist && artist.startDate ? String(artist.startDate) : "1995-01-02",
       bufferSlots: Math.max(0, Number(artist && artist.bufferSlots != null ? artist.bufferSlots : data.scheduleCalculator.defaultBufferSlots)),
       contracts: contracts,
-      calculated: Boolean(artist && artist.calculated)
+      calculated: Boolean(artist && artist.calculated),
+      validationAttempted: Boolean(artist && artist.validationAttempted)
     };
   }
 
@@ -1361,6 +1367,7 @@
       if (legacy && Array.isArray(legacy.contracts)) {
         const artist = normalizeScheduleArtist(legacy, 0);
         artist.calculated = false;
+        artist.validationAttempted = false;
         return { schemaVersion: 2, activeArtistId: artist.id, view: "artist", artists: [artist] };
       }
     } catch (error) {
@@ -1398,20 +1405,31 @@
   }
 
   function validateScheduleSnapshot(snapshot) {
-    const errors = [];
+    const issues = [];
+    function addIssue(details) {
+      issues.push(Object.assign({
+        severity: "error",
+        artistId: snapshot.id,
+        artistName: snapshot.name || snapshot.artist || "未命名艺人"
+      }, details));
+    }
     const start = scheduleParseDate(snapshot.startDate);
-    if (!start) errors.push("请选择有效的首个可排日期。");
-    if (!snapshot.contracts.length) errors.push("至少添加一份通告。");
+    if (!start) addIssue({ code: "date.invalid", scope: "artist", field: "startDate", message: "请选择有效的首个可排日期。", priority: 10 });
+    if (!Number.isInteger(snapshot.bufferSlots) || snapshot.bufferSlots < 0 || snapshot.bufferSlots > 14) {
+      addIssue({ code: "range.buffer", scope: "artist", field: "bufferSlots", message: "安全余量必须是 0–14 之间的整数。", priority: 20 });
+    }
+    if (!snapshot.contracts.length) addIssue({ code: "list.empty", scope: "artist", field: "contracts", message: "至少添加一份通告。", priority: 30 });
     snapshot.contracts.forEach(function (contract, index) {
       const label = contract.name || "第 " + (index + 1) + " 份通告";
       const deadline = scheduleParseDate(contract.deadline);
-      if (!contract.name || !contract.name.trim()) errors.push("第 " + (index + 1) + " 份通告缺少名称。");
-      if (!deadline) errors.push(label + "缺少有效截止日。");
-      else if (start && deadline < start) errors.push(label + "的截止日早于首个可排日期。");
-      if (!Number.isInteger(contract.remainingDays) || contract.remainingDays < 1) errors.push(label + "的剩余工作日必须大于 0。");
-      if (!contract.weekdays.length) errors.push(label + "至少要选择一个允许工作星期。");
+      const priority = 40 + index * 10;
+      if (!contract.name || !contract.name.trim()) addIssue({ code: "required", scope: "contract", entityId: contract.id, field: "name", message: "请输入第 " + (index + 1) + " 份通告的名称。", priority: priority });
+      if (!deadline) addIssue({ code: "date.invalid", scope: "contract", entityId: contract.id, field: "deadline", message: label + "缺少有效截止日。", priority: priority + 1 });
+      else if (start && deadline < start) addIssue({ code: "date.beforeStart", scope: "contract", entityId: contract.id, field: "deadline", relatedField: "startDate", message: label + "的截止日不能早于首个可排日期。", priority: priority + 1 });
+      if (!Number.isInteger(contract.remainingDays) || contract.remainingDays < 1 || contract.remainingDays > 99) addIssue({ code: "range.days", scope: "contract", entityId: contract.id, field: "remainingDays", message: label + "的剩余工作日必须是 1–99 之间的整数。", priority: priority + 2 });
+      if (!contract.weekdays.length) addIssue({ code: "group.empty", scope: "contract", entityId: contract.id, field: "weekdays", message: label + "至少要选择一个允许工作星期。", priority: priority + 3 });
     });
-    return errors;
+    return issues.sort(function (a, b) { return a.priority - b.priority; });
   }
 
   function simulateSchedule(contracts, startDateValue) {
@@ -1538,8 +1556,15 @@
   }
 
   function calculateSchedule(snapshot) {
-    const errors = validateScheduleSnapshot(snapshot);
-    if (errors.length) return { status: "invalid", title: "输入尚未完整", diagnostics: errors };
+    const issues = validateScheduleSnapshot(snapshot);
+    if (issues.length) return {
+      status: "invalid",
+      title: "输入尚未完整",
+      artist: snapshot.name || snapshot.artist || "未命名艺人",
+      artistId: snapshot.id,
+      diagnostics: issues.map(function (issue) { return issue.message; }),
+      issues: issues
+    };
     const existing = snapshot.contracts.filter(function (contract) { return contract.status === "existing"; });
     const candidates = snapshot.contracts.filter(function (contract) { return contract.status === "candidate"; });
     const existingSimulation = simulateSchedule(existing, snapshot.startDate);
@@ -1587,12 +1612,131 @@
     return '<span class="schedule-verdict safe">可完成</span>';
   }
 
+  function scheduleIssueDomId(issue, index) {
+    return ("schedule-error-" + (issue.artistId || "artist") + "-" + (issue.entityId || "form") + "-" + issue.field + "-" + index).replace(/[^a-zA-Z0-9_-]/g, "-");
+  }
+
+  function scheduleContractElement(contractId) {
+    return Array.from(refs.scheduleContractList.querySelectorAll("[data-schedule-contract]")).find(function (row) {
+      return row.dataset.scheduleContract === contractId;
+    }) || null;
+  }
+
+  function scheduleResolveIssueTarget(issue) {
+    if (!issue || issue.artistId !== scheduleWorkspaceState.activeArtistId) return null;
+    if (issue.scope === "artist") {
+      if (issue.field === "contracts") {
+        const button = refs.scheduleForm.querySelector('[data-schedule-menu="add"]');
+        return { container: refs.scheduleForm.querySelector(".schedule-contract-section"), host: refs.scheduleForm.querySelector(".schedule-section-heading"), a11y: button, focus: button };
+      }
+      const control = refs.scheduleForm.elements[issue.field];
+      return control ? { container: control.closest("label") || control, host: control.closest("label") || control, a11y: control, focus: control } : null;
+    }
+    if (issue.scope === "contract") {
+      const row = scheduleContractElement(issue.entityId);
+      if (!row) return null;
+      if (issue.field === "weekdays") {
+        const group = row.querySelector(".schedule-weekdays");
+        const firstCheckbox = group ? group.querySelector('input[type="checkbox"]') : null;
+        return { container: group, host: group, card: row, a11y: group, focus: firstCheckbox };
+      }
+      const control = row.querySelector('[data-schedule-field="' + issue.field + '"]');
+      return control ? { container: control.closest("label") || control, host: control.closest("label") || control, card: row, a11y: control, focus: control } : null;
+    }
+    return null;
+  }
+
+  function clearScheduleValidationUI() {
+    scheduleVisibleIssues = [];
+    refs.scheduleForm.querySelectorAll(".field-error").forEach(function (message) { message.remove(); });
+    refs.scheduleForm.querySelectorAll(".validation-field-invalid, .validation-control-invalid, .validation-group-invalid, .validation-related, .validation-pulse, .contract-invalid, .section-invalid").forEach(function (element) {
+      element.classList.remove("validation-field-invalid", "validation-control-invalid", "validation-group-invalid", "validation-related", "validation-pulse", "contract-invalid", "section-invalid");
+    });
+    refs.scheduleForm.querySelectorAll("[data-validation-describedby]").forEach(function (element) {
+      const original = element.dataset.validationOriginalDescribedby || "";
+      if (original) element.setAttribute("aria-describedby", original);
+      else element.removeAttribute("aria-describedby");
+      element.removeAttribute("aria-invalid");
+      delete element.dataset.validationDescribedby;
+      delete element.dataset.validationOriginalDescribedby;
+    });
+    refs.scheduleFormErrors.hidden = true;
+    refs.scheduleFormErrors.innerHTML = "";
+  }
+
+  function renderScheduleFormErrors(issues) {
+    if (!issues.length) {
+      refs.scheduleFormErrors.hidden = true;
+      refs.scheduleFormErrors.innerHTML = "";
+      return;
+    }
+    refs.scheduleFormErrors.hidden = false;
+    refs.scheduleFormErrors.innerHTML = '<span><i data-lucide="circle-alert"></i></span><p><b>' + issues.length + ' 项需要修正</b><small>' + escapeHtml(issues[0].message) + '</small></p><button type="button" data-validation-first>定位第一项</button>';
+  }
+
+  function applyScheduleValidationIssues(issues) {
+    clearScheduleValidationUI();
+    scheduleVisibleIssues = issues.slice();
+    const activeIssues = issues.filter(function (issue) { return issue.artistId === scheduleWorkspaceState.activeArtistId; });
+    renderScheduleFormErrors(activeIssues);
+    activeIssues.forEach(function (issue, index) {
+      const target = scheduleResolveIssueTarget(issue);
+      if (!target || !target.container || !target.host) return;
+      const messageId = scheduleIssueDomId(issue, index);
+      const message = document.createElement("p");
+      message.className = "field-error";
+      message.id = messageId;
+      message.innerHTML = '<i data-lucide="circle-alert"></i><span>' + escapeHtml(issue.message) + '</span>';
+      target.container.classList.add(issue.field === "weekdays" ? "validation-group-invalid" : "validation-field-invalid");
+      if (target.focus && issue.field !== "weekdays") target.focus.classList.add("validation-control-invalid");
+      if (target.card) target.card.classList.add("contract-invalid");
+      if (issue.field === "contracts") target.container.classList.add("section-invalid");
+      if (target.a11y) {
+        target.a11y.dataset.validationOriginalDescribedby = target.a11y.getAttribute("aria-describedby") || "";
+        target.a11y.dataset.validationDescribedby = "true";
+        target.a11y.setAttribute("aria-invalid", "true");
+        target.a11y.setAttribute("aria-describedby", [target.a11y.dataset.validationOriginalDescribedby, messageId].filter(Boolean).join(" "));
+      }
+      if (issue.field === "weekdays" || issue.field === "contracts") target.host.insertAdjacentElement("afterend", message);
+      else target.host.appendChild(message);
+      if (issue.relatedField) {
+        const related = refs.scheduleForm.elements[issue.relatedField];
+        if (related) (related.closest("label") || related).classList.add("validation-related");
+      }
+    });
+    iconRefresh();
+  }
+
+  function focusScheduleIssue(issue) {
+    if (!issue) return;
+    if (scheduleWorkspaceState.view !== "artist" || (issue.artistId && issue.artistId !== scheduleWorkspaceState.activeArtistId)) {
+      if (issue.artistId) scheduleWorkspaceState.activeArtistId = issue.artistId;
+      scheduleWorkspaceState.view = "artist";
+      saveScheduleWorkspace();
+      renderScheduleCurrent();
+    }
+    window.requestAnimationFrame(function () {
+      const target = scheduleResolveIssueTarget(issue);
+      if (!target || !target.container) return;
+      target.container.classList.remove("validation-pulse");
+      void target.container.offsetWidth;
+      target.container.classList.add("validation-pulse");
+      target.container.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+      window.setTimeout(function () {
+        if (target.focus && typeof target.focus.focus === "function") target.focus.focus({ preventScroll: true });
+      }, 180);
+      window.setTimeout(function () { target.container.classList.remove("validation-pulse"); }, 900);
+    });
+  }
+
   function renderScheduleResult(result) {
     if (result.status === "invalid") {
-      refs.scheduleOutput.innerHTML = '<div class="schedule-result invalid"><div class="schedule-result-header"><span><i data-lucide="circle-alert"></i></span><div><p>无法计算</p><h3>' + escapeHtml(result.title) + '</h3></div></div><ul class="schedule-diagnostics">' + result.diagnostics.map(function (item) { return '<li>' + escapeHtml(item) + '</li>'; }).join("") + '</ul></div>';
+      scheduleVisibleIssues = result.issues || [];
+      refs.scheduleOutput.innerHTML = '<div class="schedule-result invalid"><div class="schedule-result-header"><span><i data-lucide="circle-alert"></i></span><div><p>无法计算</p><h3>' + escapeHtml(result.title) + '</h3><small>' + escapeHtml(result.artist || "当前艺人") + ' · ' + scheduleVisibleIssues.length + ' 项需要修正</small></div></div><ul class="schedule-diagnostics validation-diagnostics">' + scheduleVisibleIssues.map(function (issue, index) { return '<li><button type="button" data-validation-jump="' + index + '"><i data-lucide="locate-fixed"></i><span>' + escapeHtml(issue.message) + '</span></button></li>'; }).join("") + '</ul></div>';
       iconRefresh();
       return;
     }
+    scheduleVisibleIssues = [];
     const statusMeta = {
       safe: { kicker: "档期可行", icon: "calendar-check-2", label: "可接" },
       risk: { kicker: "档期紧张", icon: "triangle-alert", label: "高风险" },
@@ -1621,10 +1765,12 @@
   }
 
   function scheduleStatusInfo(artist) {
-    if (!artist.calculated) return { status: "pending", label: "待检查", result: null };
+    const issues = artist.validationAttempted ? validateScheduleSnapshot(artist) : [];
+    if (issues.length) return { status: "invalid", label: issues.length + " 项需修正", result: calculateSchedule(artist), errorCount: issues.length };
+    if (!artist.calculated) return { status: "pending", label: "待检查", result: null, errorCount: 0 };
     const result = calculateSchedule(artist);
     const labels = { safe: "可接", risk: "有风险", blocked: "冲突", invalid: "需补全" };
-    return { status: result.status, label: labels[result.status] || "待检查", result: result };
+    return { status: result.status, label: labels[result.status] || "待检查", result: result, errorCount: result.issues ? result.issues.length : 0 };
   }
 
   function scheduleReplaceArtist(snapshot) {
@@ -1644,6 +1790,20 @@
 
   function schedulePendingMarkup(title, text) {
     return '<div class="empty-plan schedule-empty"><span class="empty-illustration"><i data-lucide="calendar-days"></i></span><p class="empty-kicker">当前艺人档期</p><h3>' + escapeHtml(title) + '</h3><p>' + escapeHtml(text) + '</p></div>';
+  }
+
+  function renderScheduleDraftState(snapshot, title, text) {
+    const issues = snapshot.validationAttempted ? validateScheduleSnapshot(snapshot) : [];
+    if (issues.length) {
+      const result = calculateSchedule(snapshot);
+      renderScheduleResult(result);
+      applyScheduleValidationIssues(result.issues || []);
+      return result;
+    }
+    clearScheduleValidationUI();
+    refs.scheduleOutput.innerHTML = schedulePendingMarkup(title || "输入已更新，结果待检查", text || "数据已经保存；检查当前艺人后刷新逐日排程。");
+    iconRefresh();
+    return null;
   }
 
   function renderScheduleArtistBar() {
@@ -1681,8 +1841,16 @@
     refs.scheduleWorkspace.classList.remove("all-view");
     applyScheduleSnapshot(artist);
     renderScheduleArtistBar();
-    if (artist.calculated) renderScheduleResult(calculateSchedule(artist));
-    else {
+    const issues = artist.validationAttempted ? validateScheduleSnapshot(artist) : [];
+    if (issues.length) {
+      const result = calculateSchedule(artist);
+      renderScheduleResult(result);
+      applyScheduleValidationIssues(result.issues || []);
+    } else if (artist.calculated) {
+      clearScheduleValidationUI();
+      renderScheduleResult(calculateSchedule(artist));
+    } else {
+      clearScheduleValidationUI();
       refs.scheduleOutput.innerHTML = schedulePendingMarkup("录入通告后检查冲突", "切换艺人不会清空数据；完成输入后检查当前艺人的档期。");
       iconRefresh();
     }
@@ -1736,9 +1904,10 @@
     const overallTitle = !readyCount ? "等待检查艺人档期" : issueCount ? "有艺人需要调整档期" : "已检查艺人的档期可行";
     const cards = rows.map(function (row) {
       const result = row.result;
-      const candidateCount = result ? result.contracts.filter(function (contract) { return contract.status === "candidate"; }).length : row.artist.contracts.filter(function (contract) { return contract.status === "candidate"; }).length;
-      const completion = result ? result.contracts.filter(function (contract) { return contract.completionDate; }).map(function (contract) { return contract.completionDate; }).sort().pop() : null;
-      return '<button class="schedule-company-card ' + row.status + '" type="button" data-schedule-artist="' + escapeHtml(row.artist.id) + '"><header><span><i data-lucide="user-round"></i>' + escapeHtml(row.artist.name) + '</span><em>' + row.label + '</em></header><div><span>通告<b>' + row.artist.contracts.length + '</b></span><span>待接<b>' + candidateCount + '</b></span><span>已排<b>' + (result ? result.assignedDays + '/' + result.totalDays : '—') + '</b></span><span>完成<b>' + (completion ? scheduleDateLabel(completion) : '—') + '</b></span></div></button>';
+      const hasSchedule = result && Array.isArray(result.contracts);
+      const candidateCount = hasSchedule ? result.contracts.filter(function (contract) { return contract.status === "candidate"; }).length : row.artist.contracts.filter(function (contract) { return contract.status === "candidate"; }).length;
+      const completion = hasSchedule ? result.contracts.filter(function (contract) { return contract.completionDate; }).map(function (contract) { return contract.completionDate; }).sort().pop() : null;
+      return '<button class="schedule-company-card ' + row.status + '" type="button" data-schedule-artist="' + escapeHtml(row.artist.id) + '"><header><span><i data-lucide="user-round"></i>' + escapeHtml(row.artist.name) + '</span><em>' + row.label + '</em></header><div><span>通告<b>' + row.artist.contracts.length + '</b></span><span>待接<b>' + candidateCount + '</b></span><span>已排<b>' + (hasSchedule ? result.assignedDays + '/' + result.totalDays : '—') + '</b></span><span>完成<b>' + (completion ? scheduleDateLabel(completion) : '—') + '</b></span></div></button>';
     }).join("");
     refs.scheduleOutput.innerHTML = '<div class="schedule-company-result ' + (overall ? overall.status : 'pending') + '"><header class="schedule-company-header"><div><p>公司档期</p><h3>' + overallTitle + '</h3><span>每位艺人拥有独立工作槽，同一天可分别执行不同通告。</span></div><button class="primary-button" type="button" data-schedule-calculate-all><i data-lucide="calendar-check-2"></i>检查全部艺人</button></header><div class="schedule-company-metrics"><div><span>艺人</span><b>' + rows.length + ' / ' + (data.scheduleCalculator.maxArtists || 3) + '</b></div><div><span>已检查</span><b>' + readyCount + '</b></div><div><span>需处理</span><b>' + issueCount + '</b></div></div><div class="schedule-company-cards">' + cards + '</div><section class="schedule-result-section"><div class="schedule-result-heading"><div><p>并行排程</p><h4>全员周历</h4></div><span>跨艺人同日不冲突</span></div>' + scheduleCompanyCalendar(rows) + '</section><footer class="schedule-evidence-note"><i data-lucide="shield-alert"></i><p>全员总览只合并三位艺人的时间安排，不计算公司资金、通告场所或游戏签约数量限制。</p></footer></div>';
     iconRefresh();
@@ -1791,6 +1960,16 @@
       const jump = event.target.closest("[data-route-jump]");
       if (jump) navigate(jump.dataset.routeJump);
 
+      const validationJump = event.target.closest("[data-validation-jump]");
+      if (validationJump) {
+        focusScheduleIssue(scheduleVisibleIssues[Number(validationJump.dataset.validationJump)]);
+        return;
+      }
+      if (event.target.closest("[data-validation-first]")) {
+        focusScheduleIssue(scheduleVisibleIssues[0]);
+        return;
+      }
+
       const scheduleMenu = event.target.closest("[data-schedule-menu]");
       if (scheduleMenu) {
         const name = scheduleMenu.dataset.scheduleMenu;
@@ -1827,9 +2006,16 @@
         return;
       }
       if (event.target.closest("[data-schedule-calculate-all]")) {
-        scheduleWorkspaceState.artists.forEach(function (artist) { artist.calculated = true; });
+        scheduleWorkspaceState.artists.forEach(function (artist) {
+          artist.calculated = true;
+          artist.validationAttempted = true;
+        });
+        const firstIssue = scheduleWorkspaceState.artists.reduce(function (found, artist) {
+          return found || validateScheduleSnapshot(artist)[0] || null;
+        }, null);
         saveScheduleWorkspace();
         renderScheduleOverview();
+        if (firstIssue) focusScheduleIssue(firstIssue);
         return;
       }
 
@@ -1842,7 +2028,7 @@
         applyScheduleSnapshot(snapshot);
         saveScheduleWorkspace();
         renderScheduleArtistBar();
-        refs.scheduleOutput.innerHTML = schedulePendingMarkup("通告清单已更新", "检查当前艺人后生成新的逐日排程。");
+        renderScheduleDraftState(snapshot, "通告清单已更新", "检查当前艺人后生成新的逐日排程。");
         scheduleClosePopovers();
         const names = refs.scheduleContractList.querySelectorAll('[data-schedule-field="name"]');
         if (names.length) names[names.length - 1].focus();
@@ -1859,7 +2045,7 @@
         applyScheduleSnapshot(snapshot);
         saveScheduleWorkspace();
         renderScheduleArtistBar();
-        refs.scheduleOutput.innerHTML = schedulePendingMarkup("通告清单已更新", "检查当前艺人后生成新的逐日排程。");
+        renderScheduleDraftState(snapshot, "通告清单已更新", "检查当前艺人后生成新的逐日排程。");
         iconRefresh();
         return;
       }
@@ -1868,6 +2054,7 @@
         scheduleReplaceArtist(snapshot);
         applyScheduleSnapshot(snapshot);
         saveScheduleWorkspace();
+        clearScheduleValidationUI();
         renderScheduleResult(calculateSchedule(snapshot));
         renderScheduleArtistBar();
         scheduleClosePopovers();
@@ -1882,12 +2069,13 @@
           startDate: current.startDate,
           bufferSlots: current.bufferSlots,
           contracts: [],
-          calculated: false
+          calculated: false,
+          validationAttempted: false
         };
         scheduleReplaceArtist(snapshot);
         applyScheduleSnapshot(snapshot);
         saveScheduleWorkspace();
-        refs.scheduleOutput.innerHTML = schedulePendingMarkup("当前艺人尚无通告", "使用“添加通告”录入已有或待接工作。");
+        renderScheduleDraftState(snapshot, "当前艺人尚无通告", "使用“添加通告”录入已有或待接工作。");
         renderScheduleArtistBar();
         scheduleClosePopovers();
         iconRefresh();
@@ -2013,23 +2201,28 @@
       const snapshot = scheduleCommitForm(true);
       refs.scheduleSubmitLabel.textContent = "检查" + snapshot.name + "档期";
       renderScheduleArtistBar();
-      refs.scheduleOutput.innerHTML = schedulePendingMarkup("输入已更新，结果待检查", "数据已经保存；检查当前艺人后刷新逐日排程。");
-      iconRefresh();
+      renderScheduleDraftState(snapshot);
     });
     refs.scheduleForm.addEventListener("change", function () {
       const snapshot = scheduleCommitForm(true);
       refs.scheduleSubmitLabel.textContent = "检查" + snapshot.name + "档期";
       renderScheduleArtistBar();
+      renderScheduleDraftState(snapshot);
     });
     refs.scheduleForm.addEventListener("submit", function (event) {
       event.preventDefault();
       const snapshot = readScheduleSnapshot();
       snapshot.calculated = true;
+      snapshot.validationAttempted = true;
       scheduleReplaceArtist(snapshot);
       const result = calculateSchedule(snapshot);
       renderScheduleResult(result);
       saveScheduleWorkspace();
       renderScheduleArtistBar();
+      if (result.status === "invalid") {
+        applyScheduleValidationIssues(result.issues || []);
+        focusScheduleIssue((result.issues || [])[0]);
+      } else clearScheduleValidationUI();
     });
 
     window.addEventListener("hashchange", function () { navigate(window.location.hash.replace("#", ""), false); });

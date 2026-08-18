@@ -2815,6 +2815,59 @@ svg {
   outline: 0;
 }
 
+.form-error-summary {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  margin-top: 12px;
+  padding: 9px 10px;
+  color: var(--danger);
+  background: var(--coral-soft);
+  border: 1px solid #dba99f;
+  border-radius: 4px;
+}
+
+.form-error-summary[hidden] {
+  display: none;
+}
+
+.form-error-summary > span {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  background: #f7e1dc;
+  border-radius: 3px;
+}
+
+.form-error-summary svg {
+  width: 15px;
+  height: 15px;
+}
+
+.form-error-summary p,
+.form-error-summary b,
+.form-error-summary small {
+  display: block;
+  margin: 0;
+}
+
+.form-error-summary b { font-size: 11px; }
+.form-error-summary small { margin-top: 2px; color: var(--ink-soft); font-size: 9px; }
+
+.form-error-summary button {
+  min-height: 30px;
+  padding: 0 8px;
+  color: var(--danger);
+  background: var(--surface);
+  border: 1px solid #d39b91;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
 .schedule-menu-wrap {
   position: relative;
 }
@@ -2977,6 +3030,78 @@ svg {
   background: var(--surface-muted);
   border: 1px solid var(--line);
   border-radius: 5px;
+}
+
+.schedule-contract-row.contract-invalid {
+  border-color: #d8a69e;
+  border-left: 3px solid var(--danger);
+}
+
+.schedule-basic-fields label,
+.schedule-contract-fields label,
+.schedule-weekdays,
+.schedule-contract-section,
+.schedule-contract-row {
+  scroll-margin-top: 96px;
+}
+
+.schedule-input .validation-control-invalid,
+.schedule-input .validation-control-invalid:hover,
+.schedule-input .validation-control-invalid:focus {
+  background: #fff9f7;
+  border-color: var(--danger);
+  box-shadow: 0 0 0 1px var(--danger);
+}
+
+.schedule-input .validation-field-invalid > span,
+.schedule-input .validation-group-invalid legend {
+  color: var(--danger);
+}
+
+.schedule-input .validation-group-invalid {
+  padding: 7px;
+  background: #fff9f7;
+  border: 1px solid var(--danger);
+  border-radius: 4px;
+}
+
+.schedule-input .validation-related input {
+  border-color: #d9b66e;
+  box-shadow: 0 0 0 1px #d9b66e;
+}
+
+.schedule-input .section-invalid .schedule-section-heading {
+  padding: 8px;
+  background: #fff9f7;
+  border: 1px solid #d8a69e;
+  border-radius: 4px;
+}
+
+.field-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  margin: 5px 0 0;
+  color: var(--danger);
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.field-error svg {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.validation-pulse {
+  animation: validation-pulse 760ms ease-out;
+}
+
+@keyframes validation-pulse {
+  0%, 100% { box-shadow: none; }
+  35% { box-shadow: 0 0 0 4px rgba(181, 69, 55, 0.2); }
 }
 
 .schedule-contract-row > header {
@@ -3242,6 +3367,46 @@ svg {
 
 .schedule-result.invalid .schedule-diagnostics {
   background: var(--coral-soft);
+}
+
+.validation-diagnostics {
+  display: grid;
+  gap: 5px;
+  padding: 8px;
+  list-style: none;
+}
+
+.validation-diagnostics li {
+  margin: 0;
+}
+
+.validation-diagnostics button {
+  display: flex;
+  width: 100%;
+  min-height: 34px;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 8px;
+  color: var(--danger);
+  background: rgba(255, 255, 255, 0.58);
+  border: 1px solid transparent;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 800;
+  text-align: left;
+  cursor: pointer;
+}
+
+.validation-diagnostics button:hover,
+.validation-diagnostics button:focus-visible {
+  background: var(--surface);
+  border-color: #d39b91;
+}
+
+.validation-diagnostics svg {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
 }
 
 .schedule-result-section {
@@ -4101,6 +4266,15 @@ svg {
     padding: 16px 12px;
   }
 
+  .form-error-summary {
+    grid-template-columns: 28px minmax(0, 1fr);
+  }
+
+  .form-error-summary button {
+    grid-column: 2;
+    justify-self: start;
+  }
+
   .schedule-basic-fields,
   .schedule-contract-fields {
     grid-template-columns: 1fr;
@@ -4235,5 +4409,9 @@ svg {
   *::after {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .validation-pulse {
+    animation: none !important;
   }
 }

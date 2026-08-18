@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="《明星志愿 1》DOS 原版奖项、打工、训练、公司成长与养成规划攻略工具。">
   <title>明星志愿 1 · 养成资料站</title>
-  <link rel="stylesheet" href="styles.css?v=2026.08-M10.2">
+  <link rel="icon" href="assets/stardom-cover.png" type="image/png">
+  <link rel="stylesheet" href="styles.css?v=2026.08-M11.1">
 </head>
 <body>
   <div class="app-shell">
@@ -45,7 +46,7 @@
 
       <div class="sidebar-status">
         <div class="status-line"><span class="status-dot partial"></span><span>最快估算开放</span></div>
-        <p id="sidebar-version">数据版本 2026.08-M10</p>
+        <p id="sidebar-version">数据版本 2026.08-M11</p>
       </div>
     </aside>
 
@@ -54,7 +55,7 @@
         <i data-lucide="menu"></i>
       </button>
       <strong>明星志愿 1</strong>
-      <span class="mobile-version">M10</span>
+      <span class="mobile-version">M11</span>
     </div>
 
     <main class="main-content">
@@ -64,7 +65,7 @@
           <h2 id="page-title">资料总览</h2>
         </div>
         <div class="page-meta">
-          <span><i data-lucide="database"></i><span id="header-version">2026.08-M10</span></span>
+          <span><i data-lucide="database"></i><span id="header-version">2026.08-M11</span></span>
           <span><i data-lucide="calendar-clock"></i><span id="header-updated">2026-08-03</span></span>
         </div>
       </header>
@@ -252,7 +253,7 @@
         </div>
 
         <div class="schedule-workspace" id="schedule-workspace">
-          <form class="schedule-input" id="schedule-form">
+          <form class="schedule-input" id="schedule-form" novalidate>
             <header class="schedule-editor-header">
               <div><p>当前艺人</p><input type="text" name="artist" maxlength="20" value="艺人 A" aria-label="艺人姓名"></div>
               <div class="schedule-menu-wrap">
@@ -265,6 +266,8 @@
                 </div>
               </div>
             </header>
+
+            <div class="form-error-summary" id="schedule-form-errors" role="alert" hidden></div>
 
             <section class="schedule-basic-fields">
               <label><span>首个可排日期</span><input type="date" name="startDate" min="1995-01-01" max="1996-12-31" value="1995-01-02"></label>
@@ -322,7 +325,7 @@
   </aside>
 
   <script src="assets/vendor/lucide.min.js"></script>
-  <script src="data.js?v=2026.08-M10.2"></script>
-  <script src="app.js?v=2026.08-M10.2"></script>
+  <script src="data.js?v=2026.08-M11.1"></script>
+  <script src="app.js?v=2026.08-M11.1"></script>
 </body>
 </html>
