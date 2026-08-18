@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="《明星志愿 1》DOS 原版奖项、打工、训练、公司成长与养成规划攻略工具。">
   <title>明星志愿 1 · 养成资料站</title>
-  <link rel="stylesheet" href="styles.css?v=2026.08-M9.2">
+  <link rel="stylesheet" href="styles.css?v=2026.08-M10.1">
 </head>
 <body>
   <div class="app-shell">
@@ -45,7 +45,7 @@
 
       <div class="sidebar-status">
         <div class="status-line"><span class="status-dot partial"></span><span>最快估算开放</span></div>
-        <p id="sidebar-version">数据版本 2026.08-M9</p>
+        <p id="sidebar-version">数据版本 2026.08-M10</p>
       </div>
     </aside>
 
@@ -64,7 +64,7 @@
           <h2 id="page-title">资料总览</h2>
         </div>
         <div class="page-meta">
-          <span><i data-lucide="database"></i><span id="header-version">2026.08-M9</span></span>
+          <span><i data-lucide="database"></i><span id="header-version">2026.08-M10</span></span>
           <span><i data-lucide="calendar-clock"></i><span id="header-updated">2026-08-03</span></span>
         </div>
       </header>
@@ -239,14 +239,34 @@
       <section class="page" id="page-schedule" data-page="schedule">
         <div class="planner-status-banner estimate-ready schedule-banner">
           <span class="status-icon"><i data-lucide="calendar-check-2"></i></span>
-          <div><b>通告档期冲突检查</b><p>按允许星期、剩余工作日与截止日逐日模拟；同一艺人每天只安排一份通告。</p></div>
-          <span class="status-pill official">本地计算</span>
+          <div><b>三艺人并行档期</b><p>每位艺人独立逐日模拟；快速切换资料，并在全员总览中核对三条并行日历。</p></div>
+          <span class="status-pill official">本地保存</span>
         </div>
 
-        <div class="schedule-workspace">
+        <div class="schedule-artist-bar">
+          <div class="schedule-artist-tabs" id="schedule-artist-tabs" role="tablist" aria-label="艺人档期"></div>
+          <div class="schedule-artist-actions">
+            <button class="icon-button" id="schedule-add-artist" type="button" aria-label="添加艺人" title="添加艺人"><i data-lucide="user-plus"></i></button>
+            <button class="secondary-button compact" type="button" data-schedule-view="all"><i data-lucide="rows-3"></i>全员总览</button>
+          </div>
+        </div>
+
+        <div class="schedule-workspace" id="schedule-workspace">
           <form class="schedule-input" id="schedule-form">
+            <header class="schedule-editor-header">
+              <div><p>当前艺人</p><input type="text" name="artist" maxlength="20" value="艺人 A" aria-label="艺人姓名"></div>
+              <div class="schedule-menu-wrap">
+                <button class="icon-button" type="button" data-schedule-menu="artist" aria-label="更多艺人操作" title="更多艺人操作" aria-expanded="false"><i data-lucide="ellipsis"></i></button>
+                <div class="schedule-popover" data-schedule-popover="artist" hidden>
+                  <button type="button" data-schedule-example><i data-lucide="file-chart-column"></i>载入示例</button>
+                  <button type="button" data-schedule-copy-artist><i data-lucide="copy-plus"></i>复制基础设置</button>
+                  <button type="button" data-schedule-clear><i data-lucide="rotate-ccw"></i>清空当前艺人</button>
+                  <button class="danger" type="button" data-schedule-delete-artist><i data-lucide="trash-2"></i>删除当前艺人</button>
+                </div>
+              </div>
+            </header>
+
             <section class="schedule-basic-fields">
-              <label><span>艺人</span><input type="text" name="artist" maxlength="20" value="艺人 A"></label>
               <label><span>首个可排日期</span><input type="date" name="startDate" min="1995-01-01" max="1996-12-31" value="1995-01-02"></label>
               <label><span>安全余量</span><div class="input-affix"><input type="number" name="bufferSlots" min="0" max="14" value="2"><i>工作日</i></div></label>
             </section>
@@ -255,19 +275,22 @@
               <div class="schedule-section-heading">
                 <div><p>通告清单</p><h3>已有与待接档期</h3></div>
                 <div class="schedule-heading-actions">
-                  <button class="secondary-button compact" type="button" data-schedule-example><i data-lucide="file-chart-column"></i>示例</button>
-                  <button class="secondary-button compact" type="button" data-schedule-add="candidate"><i data-lucide="plus"></i>待接通告</button>
+                  <div class="schedule-menu-wrap">
+                    <button class="secondary-button compact" type="button" data-schedule-menu="add" aria-expanded="false"><i data-lucide="plus"></i>添加通告<i data-lucide="chevron-down"></i></button>
+                    <div class="schedule-popover align-right" data-schedule-popover="add" hidden>
+                      <button type="button" data-schedule-add="existing"><i data-lucide="briefcase-business"></i>已有通告</button>
+                      <button type="button" data-schedule-add="candidate"><i data-lucide="file-plus-2"></i>待接通告</button>
+                    </div>
+                  </div>
                 </div>
               </div>
               <div class="schedule-contract-list" id="schedule-contract-list"></div>
-              <button class="text-action" type="button" data-schedule-add="existing"><i data-lucide="plus"></i>添加已有通告</button>
             </section>
 
             <footer class="schedule-form-footer">
-              <button class="secondary-button" type="button" data-schedule-clear><i data-lucide="rotate-ccw"></i>清空</button>
-              <button class="primary-button" type="submit"><i data-lucide="calendar-search"></i>检查档期</button>
+              <span class="schedule-save-state" id="schedule-save-state"><i data-lucide="hard-drive"></i>已自动保存</span>
+              <button class="primary-button" type="submit"><i data-lucide="calendar-search"></i><span id="schedule-submit-label">检查艺人 A 档期</span></button>
             </footer>
-            <p class="save-state"><i data-lucide="hard-drive"></i>档期输入自动保存在当前浏览器</p>
           </form>
 
           <section class="schedule-output" id="schedule-output" aria-live="polite">
@@ -299,7 +322,7 @@
   </aside>
 
   <script src="assets/vendor/lucide.min.js"></script>
-  <script src="data.js?v=2026.08-M9.2"></script>
-  <script src="app.js?v=2026.08-M9.2"></script>
+  <script src="data.js?v=2026.08-M10.1"></script>
+  <script src="app.js?v=2026.08-M10.1"></script>
 </body>
 </html>

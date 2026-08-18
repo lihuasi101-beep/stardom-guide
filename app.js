@@ -55,10 +55,17 @@
     saveState: document.getElementById("save-state"),
     scheduleForm: document.getElementById("schedule-form"),
     scheduleContractList: document.getElementById("schedule-contract-list"),
-    scheduleOutput: document.getElementById("schedule-output")
+    scheduleOutput: document.getElementById("schedule-output"),
+    scheduleWorkspace: document.getElementById("schedule-workspace"),
+    scheduleArtistTabs: document.getElementById("schedule-artist-tabs"),
+    scheduleAddArtist: document.getElementById("schedule-add-artist"),
+    scheduleSaveState: document.getElementById("schedule-save-state"),
+    scheduleSubmitLabel: document.getElementById("schedule-submit-label")
   };
   const filterSearchTimers = {};
   let scheduleContractCounter = 0;
+  let scheduleArtistCounter = 0;
+  let scheduleWorkspaceState = null;
 
   function iconRefresh() {
     if (window.lucide && typeof window.lucide.createIcons === "function") {
@@ -1208,6 +1215,11 @@
     return "contract-" + Date.now().toString(36) + "-" + scheduleContractCounter;
   }
 
+  function scheduleArtistId() {
+    scheduleArtistCounter += 1;
+    return "artist-" + Date.now().toString(36) + "-" + scheduleArtistCounter;
+  }
+
   function scheduleDefaultContract(status) {
     return {
       id: scheduleContractId(),
@@ -1219,24 +1231,28 @@
     };
   }
 
-  function scheduleInitialSnapshot() {
+  function scheduleInitialSnapshot(name) {
     return {
-      artist: "艺人 A",
+      id: scheduleArtistId(),
+      name: name || "艺人 A",
       startDate: "1995-01-02",
       bufferSlots: data.scheduleCalculator.defaultBufferSlots,
-      contracts: [scheduleDefaultContract("existing"), scheduleDefaultContract("candidate")]
+      contracts: [],
+      calculated: false
     };
   }
 
-  function scheduleExampleSnapshot() {
+  function scheduleExampleSnapshot(artist) {
     return {
-      artist: "艺人 A",
+      id: artist && artist.id ? artist.id : scheduleArtistId(),
+      name: artist && artist.name ? artist.name : "艺人 A",
       startDate: "1995-01-02",
       bufferSlots: 2,
       contracts: [
         { id: scheduleContractId(), status: "existing", name: "电影 A", remainingDays: 12, deadline: "1995-03-31", weekdays: [1, 3, 5] },
         { id: scheduleContractId(), status: "candidate", name: "广告 B", remainingDays: 4, deadline: "1995-02-28", weekdays: [2, 4, 6] }
-      ]
+      ],
+      calculated: true
     };
   }
 
@@ -1258,15 +1274,18 @@
   }
 
   function applyScheduleSnapshot(snapshot) {
-    refs.scheduleForm.elements.artist.value = snapshot.artist || "艺人 A";
+    refs.scheduleForm.elements.artist.value = snapshot.name || snapshot.artist || "艺人 A";
     refs.scheduleForm.elements.startDate.value = snapshot.startDate || "1995-01-02";
     refs.scheduleForm.elements.bufferSlots.value = Number.isFinite(Number(snapshot.bufferSlots)) ? snapshot.bufferSlots : 2;
     renderScheduleContracts(Array.isArray(snapshot.contracts) ? snapshot.contracts : []);
+    refs.scheduleSubmitLabel.textContent = "检查" + (snapshot.name || snapshot.artist || "当前艺人") + "档期";
   }
 
   function readScheduleSnapshot() {
+    const active = scheduleCurrentArtist();
     return {
-      artist: refs.scheduleForm.elements.artist.value.trim() || "未命名艺人",
+      id: active ? active.id : scheduleArtistId(),
+      name: refs.scheduleForm.elements.artist.value.trim() || "未命名艺人",
       startDate: refs.scheduleForm.elements.startDate.value,
       bufferSlots: Math.max(0, Number(refs.scheduleForm.elements.bufferSlots.value || 0)),
       contracts: Array.from(refs.scheduleContractList.querySelectorAll("[data-schedule-contract]")).map(function (row) {
@@ -1278,27 +1297,76 @@
           deadline: row.querySelector('[data-schedule-field="deadline"]').value,
           weekdays: Array.from(row.querySelectorAll('[data-schedule-field="weekday"]:checked')).map(function (input) { return Number(input.value); })
         };
-      })
+      }),
+      calculated: active ? Boolean(active.calculated) : false
     };
   }
 
-  function saveScheduleSnapshot(snapshot) {
+  function normalizeScheduleContract(contract) {
+    return {
+      id: contract && contract.id ? String(contract.id) : scheduleContractId(),
+      status: contract && contract.status === "candidate" ? "candidate" : "existing",
+      name: contract && contract.name ? String(contract.name) : "",
+      remainingDays: Math.max(1, Number(contract && contract.remainingDays || 1)),
+      deadline: contract && contract.deadline ? String(contract.deadline) : "1995-02-28",
+      weekdays: Array.isArray(contract && contract.weekdays)
+        ? Array.from(new Set(contract.weekdays.map(Number).filter(function (weekday) { return weekday >= 1 && weekday <= 7; })))
+        : [1, 2, 3, 4, 5, 6]
+    };
+  }
+
+  function normalizeScheduleArtist(artist, index) {
+    const contracts = artist && Array.isArray(artist.contracts)
+      ? artist.contracts.map(normalizeScheduleContract)
+      : [scheduleDefaultContract("existing"), scheduleDefaultContract("candidate")];
+    return {
+      id: artist && artist.id ? String(artist.id) : scheduleArtistId(),
+      name: artist && (artist.name || artist.artist) ? String(artist.name || artist.artist) : "艺人 " + String.fromCharCode(65 + index),
+      startDate: artist && artist.startDate ? String(artist.startDate) : "1995-01-02",
+      bufferSlots: Math.max(0, Number(artist && artist.bufferSlots != null ? artist.bufferSlots : data.scheduleCalculator.defaultBufferSlots)),
+      contracts: contracts,
+      calculated: Boolean(artist && artist.calculated)
+    };
+  }
+
+  function scheduleInitialWorkspace() {
+    const artist = scheduleInitialSnapshot("艺人 A");
+    return { schemaVersion: 2, activeArtistId: artist.id, view: "artist", artists: [artist] };
+  }
+
+  function scheduleCurrentArtist() {
+    if (!scheduleWorkspaceState || !Array.isArray(scheduleWorkspaceState.artists)) return null;
+    return scheduleWorkspaceState.artists.find(function (artist) { return artist.id === scheduleWorkspaceState.activeArtistId; }) || scheduleWorkspaceState.artists[0] || null;
+  }
+
+  function saveScheduleWorkspace() {
     try {
-      localStorage.setItem("stardomGuide.scheduleCalculator", JSON.stringify(snapshot));
+      localStorage.setItem("stardomGuide.scheduleCalculator.v2", JSON.stringify(scheduleWorkspaceState));
     } catch (error) {
       return false;
     }
     return true;
   }
 
-  function restoreScheduleSnapshot() {
+  function restoreScheduleWorkspace() {
     try {
-      const saved = JSON.parse(localStorage.getItem("stardomGuide.scheduleCalculator") || "null");
-      if (saved && Array.isArray(saved.contracts)) return saved;
+      const saved = JSON.parse(localStorage.getItem("stardomGuide.scheduleCalculator.v2") || "null");
+      if (saved && saved.schemaVersion === 2 && Array.isArray(saved.artists) && saved.artists.length) {
+        const artists = saved.artists.slice(0, data.scheduleCalculator.maxArtists || 3).map(normalizeScheduleArtist);
+        const activeArtistId = artists.some(function (artist) { return artist.id === saved.activeArtistId; }) ? saved.activeArtistId : artists[0].id;
+        return { schemaVersion: 2, activeArtistId: activeArtistId, view: saved.view === "all" ? "all" : "artist", artists: artists };
+      }
+
+      const legacy = JSON.parse(localStorage.getItem("stardomGuide.scheduleCalculator") || "null");
+      if (legacy && Array.isArray(legacy.contracts)) {
+        const artist = normalizeScheduleArtist(legacy, 0);
+        artist.calculated = false;
+        return { schemaVersion: 2, activeArtistId: artist.id, view: "artist", artists: [artist] };
+      }
     } catch (error) {
-      return scheduleInitialSnapshot();
+      return scheduleInitialWorkspace();
     }
-    return scheduleInitialSnapshot();
+    return scheduleInitialWorkspace();
   }
 
   function scheduleParseDate(value) {
@@ -1337,6 +1405,7 @@
     snapshot.contracts.forEach(function (contract, index) {
       const label = contract.name || "第 " + (index + 1) + " 份通告";
       const deadline = scheduleParseDate(contract.deadline);
+      if (!contract.name || !contract.name.trim()) errors.push("第 " + (index + 1) + " 份通告缺少名称。");
       if (!deadline) errors.push(label + "缺少有效截止日。");
       else if (start && deadline < start) errors.push(label + "的截止日早于首个可排日期。");
       if (!Number.isInteger(contract.remainingDays) || contract.remainingDays < 1) errors.push(label + "的剩余工作日必须大于 0。");
@@ -1500,7 +1569,7 @@
     return {
       status: status,
       title: title,
-      artist: snapshot.artist,
+      artist: snapshot.name || snapshot.artist || "未命名艺人",
       startDate: snapshot.startDate,
       bufferSlots: snapshot.bufferSlots,
       diagnostics: diagnostics,
@@ -1551,9 +1620,168 @@
     iconRefresh();
   }
 
+  function scheduleStatusInfo(artist) {
+    if (!artist.calculated) return { status: "pending", label: "待检查", result: null };
+    const result = calculateSchedule(artist);
+    const labels = { safe: "可接", risk: "有风险", blocked: "冲突", invalid: "需补全" };
+    return { status: result.status, label: labels[result.status] || "待检查", result: result };
+  }
+
+  function scheduleReplaceArtist(snapshot) {
+    const index = scheduleWorkspaceState.artists.findIndex(function (artist) { return artist.id === snapshot.id; });
+    if (index >= 0) scheduleWorkspaceState.artists[index] = snapshot;
+    else scheduleWorkspaceState.artists.push(snapshot);
+  }
+
+  function scheduleCommitForm(markDirty) {
+    const snapshot = readScheduleSnapshot();
+    if (markDirty) snapshot.calculated = false;
+    scheduleReplaceArtist(snapshot);
+    saveScheduleWorkspace();
+    if (refs.scheduleSaveState) refs.scheduleSaveState.innerHTML = '<i data-lucide="hard-drive"></i>已自动保存';
+    return snapshot;
+  }
+
+  function schedulePendingMarkup(title, text) {
+    return '<div class="empty-plan schedule-empty"><span class="empty-illustration"><i data-lucide="calendar-days"></i></span><p class="empty-kicker">当前艺人档期</p><h3>' + escapeHtml(title) + '</h3><p>' + escapeHtml(text) + '</p></div>';
+  }
+
+  function renderScheduleArtistBar() {
+    const maxArtists = data.scheduleCalculator.maxArtists || 3;
+    refs.scheduleArtistTabs.innerHTML = scheduleWorkspaceState.artists.map(function (artist) {
+      const meta = scheduleStatusInfo(artist);
+      const isActive = scheduleWorkspaceState.view === "artist" && artist.id === scheduleWorkspaceState.activeArtistId;
+      return '<button class="schedule-artist-tab ' + meta.status + (isActive ? ' active' : '') + '" type="button" role="tab" aria-selected="' + (isActive ? 'true' : 'false') + '" data-schedule-artist="' + escapeHtml(artist.id) + '"><span><i data-lucide="user-round"></i>' + escapeHtml(artist.name) + '</span><small>' + artist.contracts.length + ' 份 · ' + meta.label + '</small></button>';
+    }).join("");
+    refs.scheduleAddArtist.disabled = scheduleWorkspaceState.artists.length >= maxArtists;
+    refs.scheduleAddArtist.title = refs.scheduleAddArtist.disabled ? "最多管理 " + maxArtists + " 位艺人" : "添加艺人";
+    const allButton = document.querySelector('[data-schedule-view="all"]');
+    if (allButton) allButton.classList.toggle("active", scheduleWorkspaceState.view === "all");
+    const deleteButton = document.querySelector("[data-schedule-delete-artist]");
+    if (deleteButton) deleteButton.disabled = scheduleWorkspaceState.artists.length <= 1;
+    const copyButton = document.querySelector("[data-schedule-copy-artist]");
+    if (copyButton) copyButton.disabled = scheduleWorkspaceState.artists.length >= maxArtists;
+    iconRefresh();
+  }
+
+  function scheduleClosePopovers(exceptName) {
+    document.querySelectorAll("[data-schedule-popover]").forEach(function (popover) {
+      if (popover.dataset.schedulePopover === exceptName) return;
+      popover.hidden = true;
+    });
+    document.querySelectorAll("[data-schedule-menu]").forEach(function (trigger) {
+      if (trigger.dataset.scheduleMenu !== exceptName) trigger.setAttribute("aria-expanded", "false");
+    });
+  }
+
+  function renderScheduleCurrent() {
+    const artist = scheduleCurrentArtist();
+    if (!artist) return;
+    scheduleWorkspaceState.view = "artist";
+    refs.scheduleWorkspace.classList.remove("all-view");
+    applyScheduleSnapshot(artist);
+    renderScheduleArtistBar();
+    if (artist.calculated) renderScheduleResult(calculateSchedule(artist));
+    else {
+      refs.scheduleOutput.innerHTML = schedulePendingMarkup("录入通告后检查冲突", "切换艺人不会清空数据；完成输入后检查当前艺人的档期。");
+      iconRefresh();
+    }
+  }
+
+  function scheduleCompanyCalendar(rows) {
+    const usableRows = rows.filter(function (row) { return row.result && row.result.assignments instanceof Map; });
+    if (!usableRows.length) return '<div class="schedule-company-empty"><i data-lucide="calendar-search"></i><p><b>还没有可汇总的排程</b><span>先检查至少一位艺人的档期。</span></p></div>';
+    const startDates = usableRows.map(function (row) { return scheduleParseDate(row.artist.startDate); }).filter(Boolean);
+    const assignedDates = usableRows.reduce(function (all, row) { return all.concat(Array.from(row.result.assignments.keys()).map(scheduleParseDate)); }, []).filter(Boolean);
+    const firstDate = new Date(Math.min.apply(null, startDates.map(function (date) { return date.getTime(); })));
+    const lastDate = assignedDates.length ? new Date(Math.max.apply(null, assignedDates.map(function (date) { return date.getTime(); }))) : firstDate;
+    const firstMonday = scheduleAddDays(firstDate, 1 - scheduleWeekday(firstDate));
+    const totalWeeks = Math.max(1, Math.ceil((lastDate - firstMonday + 86400000) / (7 * 86400000)));
+    const shownWeeks = Math.min(totalWeeks, 12);
+    let html = '<div class="schedule-company-calendar">';
+    for (let weekIndex = 0; weekIndex < shownWeeks; weekIndex++) {
+      const weekStart = scheduleAddDays(firstMonday, weekIndex * 7);
+      html += '<section class="schedule-company-week"><header><b>第 ' + (weekIndex + 1) + ' 周</b><span>' + scheduleDateLabel(weekStart) + '</span></header><div class="schedule-company-grid"><div class="schedule-company-corner">艺人</div>';
+      for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
+        const date = scheduleAddDays(weekStart, dayIndex);
+        html += '<div class="schedule-company-day-head"><b>周' + data.scheduleCalculator.weekdayLabels[dayIndex] + '</b><span>' + scheduleDateLabel(date) + '</span></div>';
+      }
+      usableRows.forEach(function (row) {
+        html += '<button class="schedule-company-artist" type="button" data-schedule-artist="' + escapeHtml(row.artist.id) + '">' + escapeHtml(row.artist.name) + '</button>';
+        for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
+          const date = scheduleAddDays(weekStart, dayIndex);
+          const assignment = row.result.assignments.get(scheduleIsoDate(date));
+          html += '<div class="schedule-company-day' + (assignment ? ' assigned ' + assignment.status : '') + '">' + (assignment ? '<b title="' + escapeHtml(assignment.name) + '">' + escapeHtml(assignment.name) + '</b><span>' + (assignment.status === "existing" ? "已有" : "待接") + '</span>' : '<span>—</span>') + '</div>';
+        }
+      });
+      html += '</div></section>';
+    }
+    html += '</div>';
+    if (totalWeeks > shownWeeks) html += '<p class="schedule-hidden-weeks">后续 ' + (totalWeeks - shownWeeks) + ' 周未展开；各艺人的完整结果仍按全部档期计算。</p>';
+    return html;
+  }
+
+  function renderScheduleOverview() {
+    scheduleWorkspaceState.view = "all";
+    refs.scheduleWorkspace.classList.add("all-view");
+    renderScheduleArtistBar();
+    const rows = scheduleWorkspaceState.artists.map(function (artist) {
+      const meta = scheduleStatusInfo(artist);
+      return { artist: artist, status: meta.status, label: meta.label, result: meta.result };
+    });
+    const severity = { blocked: 4, invalid: 3, risk: 2, pending: 1, safe: 0 };
+    const overall = rows.slice().sort(function (a, b) { return severity[b.status] - severity[a.status]; })[0];
+    const readyCount = rows.filter(function (row) { return row.result; }).length;
+    const issueCount = rows.filter(function (row) { return row.status === "blocked" || row.status === "invalid" || row.status === "risk"; }).length;
+    const overallTitle = !readyCount ? "等待检查艺人档期" : issueCount ? "有艺人需要调整档期" : "已检查艺人的档期可行";
+    const cards = rows.map(function (row) {
+      const result = row.result;
+      const candidateCount = result ? result.contracts.filter(function (contract) { return contract.status === "candidate"; }).length : row.artist.contracts.filter(function (contract) { return contract.status === "candidate"; }).length;
+      const completion = result ? result.contracts.filter(function (contract) { return contract.completionDate; }).map(function (contract) { return contract.completionDate; }).sort().pop() : null;
+      return '<button class="schedule-company-card ' + row.status + '" type="button" data-schedule-artist="' + escapeHtml(row.artist.id) + '"><header><span><i data-lucide="user-round"></i>' + escapeHtml(row.artist.name) + '</span><em>' + row.label + '</em></header><div><span>通告<b>' + row.artist.contracts.length + '</b></span><span>待接<b>' + candidateCount + '</b></span><span>已排<b>' + (result ? result.assignedDays + '/' + result.totalDays : '—') + '</b></span><span>完成<b>' + (completion ? scheduleDateLabel(completion) : '—') + '</b></span></div></button>';
+    }).join("");
+    refs.scheduleOutput.innerHTML = '<div class="schedule-company-result ' + (overall ? overall.status : 'pending') + '"><header class="schedule-company-header"><div><p>公司档期</p><h3>' + overallTitle + '</h3><span>每位艺人拥有独立工作槽，同一天可分别执行不同通告。</span></div><button class="primary-button" type="button" data-schedule-calculate-all><i data-lucide="calendar-check-2"></i>检查全部艺人</button></header><div class="schedule-company-metrics"><div><span>艺人</span><b>' + rows.length + ' / ' + (data.scheduleCalculator.maxArtists || 3) + '</b></div><div><span>已检查</span><b>' + readyCount + '</b></div><div><span>需处理</span><b>' + issueCount + '</b></div></div><div class="schedule-company-cards">' + cards + '</div><section class="schedule-result-section"><div class="schedule-result-heading"><div><p>并行排程</p><h4>全员周历</h4></div><span>跨艺人同日不冲突</span></div>' + scheduleCompanyCalendar(rows) + '</section><footer class="schedule-evidence-note"><i data-lucide="shield-alert"></i><p>全员总览只合并三位艺人的时间安排，不计算公司资金、通告场所或游戏签约数量限制。</p></footer></div>';
+    iconRefresh();
+  }
+
+  function scheduleSwitchArtist(artistId) {
+    if (scheduleWorkspaceState.view === "artist" && scheduleCurrentArtist()) scheduleCommitForm(false);
+    if (!scheduleWorkspaceState.artists.some(function (artist) { return artist.id === artistId; })) return;
+    scheduleWorkspaceState.activeArtistId = artistId;
+    scheduleWorkspaceState.view = "artist";
+    saveScheduleWorkspace();
+    renderScheduleCurrent();
+  }
+
+  function scheduleAddArtist(copySettings) {
+    const maxArtists = data.scheduleCalculator.maxArtists || 3;
+    if (scheduleWorkspaceState.artists.length >= maxArtists) return;
+    if (scheduleWorkspaceState.view === "artist") scheduleCommitForm(false);
+    const source = scheduleCurrentArtist();
+    const name = "艺人 " + String.fromCharCode(65 + scheduleWorkspaceState.artists.length);
+    const artist = scheduleInitialSnapshot(name);
+    if (copySettings && source) {
+      artist.startDate = source.startDate;
+      artist.bufferSlots = source.bufferSlots;
+    }
+    scheduleWorkspaceState.artists.push(artist);
+    scheduleWorkspaceState.activeArtistId = artist.id;
+    scheduleWorkspaceState.view = "artist";
+    saveScheduleWorkspace();
+    renderScheduleCurrent();
+    refs.scheduleForm.elements.artist.focus();
+    refs.scheduleForm.elements.artist.select();
+  }
+
   function renderScheduleCalculator() {
-    applyScheduleSnapshot(restoreScheduleSnapshot());
-    window.STARDOM_SCHEDULE_CALCULATOR = Object.freeze({ calculate: calculateSchedule });
+    scheduleWorkspaceState = restoreScheduleWorkspace();
+    saveScheduleWorkspace();
+    if (scheduleWorkspaceState.view === "all") renderScheduleOverview();
+    else renderScheduleCurrent();
+    window.STARDOM_SCHEDULE_CALCULATOR = Object.freeze({
+      calculate: calculateSchedule,
+      calculateAll: function (workspace) { return workspace.artists.map(calculateSchedule); }
+    });
   }
 
   function bindEvents() {
@@ -1563,12 +1791,62 @@
       const jump = event.target.closest("[data-route-jump]");
       if (jump) navigate(jump.dataset.routeJump);
 
+      const scheduleMenu = event.target.closest("[data-schedule-menu]");
+      if (scheduleMenu) {
+        const name = scheduleMenu.dataset.scheduleMenu;
+        const popover = document.querySelector('[data-schedule-popover="' + name + '"]');
+        const shouldOpen = popover ? popover.hidden : false;
+        scheduleClosePopovers();
+        if (popover && shouldOpen) {
+          popover.hidden = false;
+          scheduleMenu.setAttribute("aria-expanded", "true");
+        }
+        return;
+      }
+      if (!event.target.closest(".schedule-menu-wrap")) scheduleClosePopovers();
+
+      const scheduleArtist = event.target.closest("[data-schedule-artist]");
+      if (scheduleArtist) {
+        scheduleSwitchArtist(scheduleArtist.dataset.scheduleArtist);
+        return;
+      }
+      if (event.target.closest('[data-schedule-view="all"]')) {
+        if (scheduleWorkspaceState.view === "artist") scheduleCommitForm(false);
+        scheduleWorkspaceState.view = "all";
+        saveScheduleWorkspace();
+        renderScheduleOverview();
+        return;
+      }
+      if (event.target.closest("#schedule-add-artist")) {
+        scheduleAddArtist(false);
+        return;
+      }
+      if (event.target.closest("[data-schedule-copy-artist]")) {
+        scheduleClosePopovers();
+        scheduleAddArtist(true);
+        return;
+      }
+      if (event.target.closest("[data-schedule-calculate-all]")) {
+        scheduleWorkspaceState.artists.forEach(function (artist) { artist.calculated = true; });
+        saveScheduleWorkspace();
+        renderScheduleOverview();
+        return;
+      }
+
       const scheduleAdd = event.target.closest("[data-schedule-add]");
       if (scheduleAdd) {
         const snapshot = readScheduleSnapshot();
         snapshot.contracts.push(scheduleDefaultContract(scheduleAdd.dataset.scheduleAdd));
+        snapshot.calculated = false;
+        scheduleReplaceArtist(snapshot);
         applyScheduleSnapshot(snapshot);
-        saveScheduleSnapshot(snapshot);
+        saveScheduleWorkspace();
+        renderScheduleArtistBar();
+        refs.scheduleOutput.innerHTML = schedulePendingMarkup("通告清单已更新", "检查当前艺人后生成新的逐日排程。");
+        scheduleClosePopovers();
+        const names = refs.scheduleContractList.querySelectorAll('[data-schedule-field="name"]');
+        if (names.length) names[names.length - 1].focus();
+        iconRefresh();
         return;
       }
       const scheduleRemove = event.target.closest("[data-schedule-remove]");
@@ -1576,23 +1854,55 @@
         const snapshot = readScheduleSnapshot();
         const row = scheduleRemove.closest("[data-schedule-contract]");
         snapshot.contracts = snapshot.contracts.filter(function (contract) { return contract.id !== row.dataset.scheduleContract; });
+        snapshot.calculated = false;
+        scheduleReplaceArtist(snapshot);
         applyScheduleSnapshot(snapshot);
-        saveScheduleSnapshot(snapshot);
+        saveScheduleWorkspace();
+        renderScheduleArtistBar();
+        refs.scheduleOutput.innerHTML = schedulePendingMarkup("通告清单已更新", "检查当前艺人后生成新的逐日排程。");
+        iconRefresh();
         return;
       }
       if (event.target.closest("[data-schedule-example]")) {
-        const snapshot = scheduleExampleSnapshot();
+        const snapshot = scheduleExampleSnapshot(scheduleCurrentArtist());
+        scheduleReplaceArtist(snapshot);
         applyScheduleSnapshot(snapshot);
-        saveScheduleSnapshot(snapshot);
+        saveScheduleWorkspace();
         renderScheduleResult(calculateSchedule(snapshot));
+        renderScheduleArtistBar();
+        scheduleClosePopovers();
         return;
       }
       if (event.target.closest("[data-schedule-clear]")) {
-        const snapshot = scheduleInitialSnapshot();
+        const current = scheduleCurrentArtist();
+        if (!window.confirm("清空“" + current.name + "”的全部通告？艺人和基础日期会保留。")) return;
+        const snapshot = {
+          id: current.id,
+          name: current.name,
+          startDate: current.startDate,
+          bufferSlots: current.bufferSlots,
+          contracts: [],
+          calculated: false
+        };
+        scheduleReplaceArtist(snapshot);
         applyScheduleSnapshot(snapshot);
-        saveScheduleSnapshot(snapshot);
-        refs.scheduleOutput.innerHTML = '<div class="empty-plan schedule-empty"><span class="empty-illustration"><i data-lucide="calendar-days"></i></span><p class="empty-kicker">单艺人逐日排程</p><h3>录入通告后检查冲突</h3><p>已有通告会先进行可行性检查，再判断待接通告能否在不造成违约的情况下插入。</p></div>';
+        saveScheduleWorkspace();
+        refs.scheduleOutput.innerHTML = schedulePendingMarkup("当前艺人尚无通告", "使用“添加通告”录入已有或待接工作。");
+        renderScheduleArtistBar();
+        scheduleClosePopovers();
         iconRefresh();
+        return;
+      }
+      if (event.target.closest("[data-schedule-delete-artist]")) {
+        if (scheduleWorkspaceState.artists.length <= 1) return;
+        const current = scheduleCurrentArtist();
+        if (!window.confirm("删除艺人“" + current.name + "”及其全部档期数据？")) return;
+        const index = scheduleWorkspaceState.artists.findIndex(function (artist) { return artist.id === current.id; });
+        scheduleWorkspaceState.artists.splice(index, 1);
+        scheduleWorkspaceState.activeArtistId = scheduleWorkspaceState.artists[Math.max(0, index - 1)].id;
+        saveScheduleWorkspace();
+        scheduleClosePopovers();
+        renderScheduleCurrent();
         return;
       }
 
@@ -1646,6 +1956,7 @@
 
     document.addEventListener("keydown", function (event) {
       if (event.key === "Escape") {
+        scheduleClosePopovers();
         if (refs.drawer.classList.contains("open")) closeDrawer();
         else {
           refs.sidebar.classList.remove("open");
@@ -1699,17 +2010,26 @@
       savePlanner(snapshot, result);
     });
     refs.scheduleForm.addEventListener("input", function () {
-      saveScheduleSnapshot(readScheduleSnapshot());
+      const snapshot = scheduleCommitForm(true);
+      refs.scheduleSubmitLabel.textContent = "检查" + snapshot.name + "档期";
+      renderScheduleArtistBar();
+      refs.scheduleOutput.innerHTML = schedulePendingMarkup("输入已更新，结果待检查", "数据已经保存；检查当前艺人后刷新逐日排程。");
+      iconRefresh();
     });
     refs.scheduleForm.addEventListener("change", function () {
-      saveScheduleSnapshot(readScheduleSnapshot());
+      const snapshot = scheduleCommitForm(true);
+      refs.scheduleSubmitLabel.textContent = "检查" + snapshot.name + "档期";
+      renderScheduleArtistBar();
     });
     refs.scheduleForm.addEventListener("submit", function (event) {
       event.preventDefault();
       const snapshot = readScheduleSnapshot();
+      snapshot.calculated = true;
+      scheduleReplaceArtist(snapshot);
       const result = calculateSchedule(snapshot);
       renderScheduleResult(result);
-      saveScheduleSnapshot(snapshot);
+      saveScheduleWorkspace();
+      renderScheduleArtistBar();
     });
 
     window.addEventListener("hashchange", function () { navigate(window.location.hash.replace("#", ""), false); });
