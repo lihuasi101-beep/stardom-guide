@@ -1538,6 +1538,31 @@ svg {
   border-bottom: 0;
 }
 
+.growth-limit-cell {
+  display: grid;
+  gap: 4px;
+  min-width: 170px;
+}
+
+.growth-limit-status {
+  display: inline-flex;
+  width: fit-content;
+  padding: 3px 6px;
+  color: #785715;
+  font-size: 10px;
+  font-weight: 800;
+  background: var(--gold-soft);
+  border: 1px solid #dec88f;
+  border-radius: 3px;
+}
+
+.growth-limit-cell small,
+.growth-limit-note {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.55;
+}
+
 .sortable {
   display: inline-flex;
   align-items: center;

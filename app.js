@@ -136,6 +136,11 @@
     }).join("") + "</div>";
   }
 
+  function growthLimitMarkup(item) {
+    const limit = item.growthLimit || { status: "unverified", label: "未确认", note: "暂无独立成长上限数据。" };
+    return '<div class="growth-limit-cell"><span class="growth-limit-status ' + escapeHtml(limit.status || "unverified") + '">' + escapeHtml(limit.label || "未确认") + '</span><small>' + escapeHtml(limit.note || "暂无独立成长上限数据。") + '</small></div>';
+  }
+
   function statusPill(status) {
     const meta = statusMeta[status] || statusMeta.unknown;
     return '<span class="status-pill ' + meta.className + '">' + meta.label + "</span>";
@@ -386,9 +391,9 @@
         return '<tr tabindex="0" data-kind="award" data-item-id="' + item.id + '"><td><div class="name-cell"><span class="row-icon award"><i data-lucide="' + item.icon + '"></i></span><span><b>' + item.name + '</b><small>' + (item.primary ? "三大主奖" : "相关奖项") + '</small></span></div></td><td>' + item.category + '</td><td>' + item.date + '</td><td>' + escapeHtml(item.shortlist) + '</td><td>' + tags(item.attributes, "neutral", 3) + '</td><td>' + statusPill(item.status) + '</td></tr>';
       }).join("");
     } else if (kind === "jobs") {
-      head = '<tr><th>打工名称</th><th>解锁阶段</th><th>解锁摘要</th><th>' + sortButton(kind, "income", "薪资") + '</th><th>' + sortButton(kind, "gain", "主要增益") + '</th><th>主要减益</th><th>置信等级</th></tr>';
+      head = '<tr><th>打工名称</th><th>解锁阶段</th><th>解锁摘要</th><th>' + sortButton(kind, "income", "薪资") + '</th><th>' + sortButton(kind, "gain", "主要增益") + '</th><th>可提升属性上限</th><th>主要减益</th><th>置信等级</th></tr>';
       body = rows.map(function (item) {
-        return '<tr tabindex="0" data-kind="job" data-item-id="' + item.id + '"><td><div class="name-cell"><span class="row-icon job"><i data-lucide="' + item.icon + '"></i></span><span><b>' + item.name + '</b><small>能力加权 ' + item.abilityWeight + '</small></span></div></td><td>' + item.unlockStage + '</td><td>' + escapeHtml(item.unlock) + '</td><td><b>' + money(item.income) + '</b></td><td>' + effectTags(item, "gain", 4) + '</td><td>' + effectTags(item, "loss", 4) + '</td><td>' + statusPill(item.status) + '</td></tr>';
+        return '<tr tabindex="0" data-kind="job" data-item-id="' + item.id + '"><td><div class="name-cell"><span class="row-icon job"><i data-lucide="' + item.icon + '"></i></span><span><b>' + item.name + '</b><small>能力加权 ' + item.abilityWeight + '</small></span></div></td><td>' + item.unlockStage + '</td><td>' + escapeHtml(item.unlock) + '</td><td><b>' + money(item.income) + '</b></td><td>' + effectTags(item, "gain", 4) + '</td><td>' + growthLimitMarkup(item) + '</td><td>' + effectTags(item, "loss", 4) + '</td><td>' + statusPill(item.status) + '</td></tr>';
       }).join("");
     } else {
       head = '<tr><th>训练名称</th><th>' + sortButton(kind, "cost", "费用") + '</th><th>属性提升</th><th>' + sortButton(kind, "pressure", "压力增加") + '</th><th>等级/阶段</th><th>置信等级</th></tr>';
@@ -610,8 +615,11 @@
         '<div class="detail-field"><small>' + unit + '</small><b>' + amount + '</b></div>' +
         '<div class="detail-field"><small>解锁阶段</small><b>' + item.unlockStage + '</b></div>' +
         (context.kind === "job" ? '<div class="detail-field"><small>能力加权</small><b>' + item.abilityWeight + '</b></div>' : '') +
+        (context.kind === "job" ? '<div class="detail-field"><small>属性成长上限</small><b>' + escapeHtml((item.growthLimit && item.growthLimit.label) || "未确认") + '</b></div>' : '') +
         '<div class="detail-field"><small>规划状态</small><b>最快估算可用</b></div>' +
-        '</div></section><section class="detail-section"><h3>解锁与阶段</h3><p>' + escapeHtml(item.unlock) + '</p></section><section class="detail-section"><h3>主要变化</h3>' + effectSummary + '</section>';
+        '</div></section><section class="detail-section"><h3>解锁与阶段</h3><p>' + escapeHtml(item.unlock) + '</p></section>' +
+        (context.kind === "job" ? '<section class="detail-section"><h3>可提升属性上限</h3><p class="growth-limit-note">' + escapeHtml((item.growthLimit && item.growthLimit.note) || "暂无独立成长上限数据。") + '</p></section>' : '') +
+        '<section class="detail-section"><h3>主要变化</h3>' + effectSummary + '</section>';
     }
     const calculationBoundary = context.kind === "job"
       ? "打工精确表已经录入，可用于最快达标估算；目标构建重复实测前不视为验证方案。"

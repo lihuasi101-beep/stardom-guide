@@ -283,7 +283,12 @@
       sourceRefs: ["SRC-OFFICIAL-MANUAL", "SRC-USER-JOB-TABLE-2026-08-04"],
       exact: item.exact,
       exactEvidence: "用户提供精确表",
-      variants: item.variants || []
+      variants: item.variants || [],
+      growthLimit: {
+        status: "unverified",
+        label: "未确认",
+        note: "当前证据只确认单次属性增减，尚未确认该打工的独立属性封顶值；不要把训练课程上限套用到打工。"
+      }
     };
   });
 
@@ -354,8 +359,8 @@
   });
 
   window.STARDOM_DATA = {
-    version: "2026.08-M11",
-    updatedAt: "2026-08-18",
+    version: "2026.08-M12",
+    updatedAt: "2026-08-21",
     gameVersion: "1995 DOS 原版 · 简体目标构建",
     attributes: attributes,
     sources: sources,
